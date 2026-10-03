@@ -1,0 +1,21 @@
+---
+import AgentScene from '../components/AgentScene.jsx'
+import '../styles/global.css'
+---
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Agent Observatory</title>
+  </head>
+  <body>
+    <div class="app-root">
+      <div class="title-header">
+        <h1>AI AGENT OBSERVATORY</h1>
+        <span>AUTONOMOUS EXECUTION VISUALIZATION</span>
+      </div>
+
+      <AgentScene client:only="react" />
+    </div>
+  </body>
+</html>
