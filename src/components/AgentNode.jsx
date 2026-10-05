@@ -6,7 +6,7 @@ import * as THREE from 'three'
 // A single holographic "core" representing one component of the agent
 // pipeline. Built from a faceted icosahedron shell + inner glowing core +
 // a rotating ring, so it reads as a machine rather than a plain sphere.
-export default function AgentNode({ node, active, onHover, onSelect, selected }) {
+export default function AgentNode({ node, active, dimmed, confidence, onHover, onSelect, selected }) {
   const group = useRef()
   const ring = useRef()
   const shell = useRef()
@@ -35,7 +35,7 @@ export default function AgentNode({ node, active, onHover, onSelect, selected })
     }
   })
 
-  const emissiveIntensity = active ? 2.2 : hovered ? 1.4 : 0.6
+  const emissiveIntensity = active ? 2.2 : hovered || selected ? 1.4 : dimmed ? 0.12 : 0.6
 
   return (
     <group
@@ -78,18 +78,18 @@ export default function AgentNode({ node, active, onHover, onSelect, selected })
           color={color}
           wireframe
           transparent
-          opacity={active ? 0.9 : 0.35}
+          opacity={active ? 0.9 : dimmed ? 0.1 : 0.35}
         />
       </mesh>
 
       {/* Rotating orbit ring */}
       <mesh ref={ring} rotation={[Math.PI / 2.4, 0, 0]}>
         <torusGeometry args={[0.85, 0.012, 8, 64]} />
-        <meshBasicMaterial color={color} transparent opacity={active ? 0.95 : 0.4} toneMapped={false} />
+        <meshBasicMaterial color={color} transparent opacity={active ? 0.95 : dimmed ? 0.12 : 0.4} toneMapped={false} />
       </mesh>
 
       {/* Point light to cast glow onto fog/particles nearby */}
-      <pointLight color={color} intensity={active ? 3 : 1} distance={4} decay={2} />
+      <pointLight color={color} intensity={active ? 3 : dimmed ? 0.15 : 1} distance={4} decay={2} />
 
       {/* Label */}
       <Billboard position={[0, 1.05, 0]}>
@@ -102,6 +102,11 @@ export default function AgentNode({ node, active, onHover, onSelect, selected })
         >
           {node.label}
         </Text>
+        {confidence != null && (
+          <Text position={[0, -0.28, 0]} fontSize={0.12} color="#d7ffe8" anchorX="center" anchorY="middle">
+            {`${confidence}%`}
+          </Text>
+        )}
       </Billboard>
     </group>
   )

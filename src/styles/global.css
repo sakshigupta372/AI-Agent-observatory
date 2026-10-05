@@ -242,12 +242,30 @@ body {
   50% { opacity: 0.4; transform: scale(0.7); }
 }
 
-.response-card {
+.zone-badge {
   position: absolute;
-  top: 78px;
+  top: 70px;
   left: 50%;
   transform: translateX(-50%);
-  width: min(360px, 86vw);
+  padding: 5px 12px;
+  border: 1px solid;
+  border-radius: 20px;
+  background: rgba(5, 7, 13, 0.55);
+  font-size: 11px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  pointer-events: none;
+  backdrop-filter: blur(10px);
+}
+
+.response-card {
+  position: absolute;
+  top: 108px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(520px, 86vw);
+  max-height: 42vh;
+  overflow: auto;
   padding: 16px 18px;
   background: rgba(10, 16, 28, 0.65);
   border: 1px solid rgba(110, 255, 199, 0.3);
@@ -264,6 +282,136 @@ body {
 
 .response-card p {
   margin: 0;
+}
+
+.response-headline {
+  font-size: 14px;
+  line-height: 1.45;
+  color: #f4fff9;
+}
+
+.response-points {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.response-points li {
+  position: relative;
+  margin-top: 7px;
+  padding-left: 14px;
+  color: #d7f5e8;
+}
+
+.response-points li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #6effc7;
+  box-shadow: 0 0 8px rgba(110, 255, 199, 0.7);
+}
+
+.response-points li.bad::before {
+  background: #ff6b81;
+  box-shadow: 0 0 8px rgba(255, 107, 129, 0.8);
+}
+
+.letterbox {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  background: #000;
+  z-index: 4;
+  pointer-events: none;
+  transition: height 0.35s ease;
+}
+
+.letterbox.top { top: 0; }
+.letterbox.bottom { bottom: 0; }
+
+.canvas-wrap.cinematic .letterbox { height: 22px; }
+
+.run-console,
+.trace-panel,
+.info-panel,
+.memory-panel,
+.response-card,
+.zone-badge {
+  z-index: 6;
+}
+
+.stream-dock {
+  position: absolute;
+  top: 112px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(520px, 86vw);
+  max-height: 28vh;
+  overflow: auto;
+  padding: 14px 16px;
+  background: rgba(8, 16, 18, 0.72);
+  border: 1px solid rgba(110, 255, 199, 0.35);
+  border-radius: 14px;
+  backdrop-filter: blur(14px);
+  z-index: 5;
+  box-shadow: 0 0 32px rgba(110, 255, 199, 0.12);
+}
+
+.stream-dock span {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 10px;
+  letter-spacing: 1.6px;
+  color: #6effc7;
+}
+
+.stream-dock p {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #e7fff4;
+}
+
+.steer-row,
+.replay-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: min(680px, 92vw);
+}
+
+.steer-row button,
+.replay-row button,
+.run-form button[type='button'] {
+  padding: 7px 12px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 177, 104, 0.45);
+  background: rgba(255, 177, 104, 0.1);
+  color: #ffd7b0;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.run-form button.on {
+  border-color: rgba(110, 255, 199, 0.6);
+  color: #6effc7;
+}
+
+.replay-row input {
+  flex: 1;
+  accent-color: #8fd3ff;
+}
+
+.trace-row.failed .trace-event {
+  color: #ff8fa3;
 }
 
 .response-close {
@@ -295,6 +443,74 @@ body {
   letter-spacing: 1.5px;
   color: #6effc7;
   margin-bottom: 6px;
+}
+
+.response-card.error {
+  border-color: rgba(255, 140, 140, 0.45);
+}
+
+.response-error {
+  margin-top: 8px;
+  color: #ffb4b4;
+}
+
+.response-asof {
+  margin-top: 8px;
+  font-size: 10.5px;
+  color: #8a97b5;
+}
+
+.source-label {
+  display: block;
+  margin-top: 12px;
+  font-size: 10px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: #7aa0c4;
+}
+
+.source-list {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.source-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.source-list a {
+  color: #8fd3ff;
+  text-decoration: none;
+}
+
+.source-list em {
+  font-style: normal;
+  font-size: 10.5px;
+  color: #9ec7e8;
+}
+
+.source-list em.undated {
+  color: #7b86a3;
+}
+
+.info-memories,
+.memory-items {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.info-memories li,
+.memory-items li {
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #c3cfe6;
 }
 
 /* --- Agent trace panel (right side) --- */

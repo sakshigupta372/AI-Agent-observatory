@@ -58,9 +58,18 @@ export const NODES = [
     tech: 'Receives an assembled context window (system + query + memory + tool results) and generates the output.',
   },
   {
+    id: 'verifier',
+    label: 'VERIFIER',
+    position: [6.0, 2.3, 1.15],
+    color: '#d7c4ff',
+    description: 'A second pass that checks each bullet against the retrieved sources.',
+    status: 'IDLE',
+    tech: 'Marks a claim supported only when the same fact appears in a source the tool just retrieved.',
+  },
+  {
     id: 'response',
     label: 'RESPONSE',
-    position: [7.2, 2.6, 2.4],
+    position: [7.6, 2.7, 2.8],
     color: '#6effc7',
     description: 'The final answer delivered back to the user.',
     status: 'IDLE',
@@ -106,7 +115,23 @@ export const CONNECTIONS = [
   ['planner', 'toolhub'],
   ['toolhub', 'memory'],
   ['memory', 'llm'],
-  ['llm', 'response'],
+  ['llm', 'verifier'],
+  ['verifier', 'response'],
 ]
 
 export const TOOL_CONNECTIONS = TOOLS.map((t) => [t.parent, t.id])
+
+export const ZONES = {
+  user: { name: 'User space', color: '#6ea8ff' },
+  intent: { name: 'Intent space', color: '#8fd3ff' },
+  planner: { name: 'Planner space', color: '#a78bff' },
+  toolhub: { name: 'Tool space', color: '#ffb168' },
+  web_search: { name: 'Tool space · Web search', color: '#ffb168' },
+  database: { name: 'Tool space · Database', color: '#ffb168' },
+  calculator: { name: 'Tool space · Calculator', color: '#ffb168' },
+  external_api: { name: 'Tool space · External API', color: '#ffb168' },
+  memory: { name: 'Memory space', color: '#ff8fd0' },
+  llm: { name: 'Reasoning space', color: '#6effc7' },
+  verifier: { name: 'Verifier space', color: '#d7c4ff' },
+  response: { name: 'Response space', color: '#6effc7' },
+}

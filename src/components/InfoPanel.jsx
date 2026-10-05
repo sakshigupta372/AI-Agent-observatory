@@ -8,6 +8,13 @@ export default function InfoPanel({ node }) {
       <span className="status">{node.status}</span>
       <p>{node.description}</p>
       <div className="tech">{node.tech}</div>
+      {node.memories?.length > 0 && (
+        <ul className="info-memories">
+          {node.memories.map((memory) => (
+            <li key={memory.id}>{memory.summary}</li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

@@ -34,7 +34,7 @@ export default function TracePanel({ trace, running }) {
           return (
             <div key={entry.id} className="trace-entry">
               <button
-                className="trace-row"
+                className={`trace-row${entry.failed ? ' failed' : ''}`}
                 onClick={() => setExpandedId(expanded ? null : entry.id)}
               >
                 <span className="trace-time">[{entry.time}]</span>
@@ -51,6 +51,7 @@ export default function TracePanel({ trace, running }) {
                     <div><span>edge</span>{entry.detail.connection.join(' → ')}</div>
                   )}
                   <div><span>phase</span>{entry.detail.phase}</div>
+                  {entry.detail.note && <div><span>note</span>{entry.detail.note}</div>}
                 </div>
               )}
             </div>

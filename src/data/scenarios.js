@@ -1,9 +1,6 @@
-// Maps a free-text query to a scripted intent + tool + response, and
-// expands that into the ordered list of pipeline steps the execution
-// engine walks through. The 3D pipeline timing is scripted; the final
-// RESPONSE text is generated for real by the backend (see /api/agent),
-// using mockContext as tool output for tools that aren't wired to a real
-// API (only Web Search hits a real search API).
+// Keyword fallback when the routing model is unavailable, plus the
+// ordered pipeline the 3D scene walks. The answer text, tool timings,
+// and retrieved memory come from /api/agent — these steps only animate.
 
 const TOOL_LABELS = {
   web_search: 'WEB SEARCH',
@@ -94,27 +91,31 @@ export function classify(query) {
 // Every step explicitly declares activeNode/connection/activeTool (using
 // null where not applicable) so the execution reducer never has to guess
 // whether to carry over previous state.
-export function buildSteps(query) {
-  const scenario = classify(query)
-  const toolId = scenario.tool
+export function buildSteps(plan) {
+  const toolId = TOOL_LABELS[plan?.tool] ? plan.tool : 'web_search'
   const toolLabel = TOOL_LABELS[toolId]
-  const plannerDuration = 500 + scenario.tasks.length * 450
+  const intentLabel = plan?.intentLabel || 'General Query'
+  const tasks = Array.isArray(plan?.tasks) && plan.tasks.length ? plan.tasks : ['Understand request', 'Gather information', 'Generate summary']
+  const memoryCluster = plan?.memoryCluster || 'conversations'
+  const plannerDuration = 500 + tasks.length * 450
 
   return [
     { id: 'user', duration: 500, activeNode: 'user', connection: null, activeTool: null, label: 'Incoming request', trace: 'REQUEST_RECEIVED' },
     { id: 'to-intent', duration: 700, activeNode: null, connection: ['user', 'intent'], activeTool: null, label: 'Incoming request' },
-    { id: 'intent', duration: 600, activeNode: 'intent', connection: null, activeTool: null, label: `Intent: ${scenario.intentLabel}`, trace: 'INTENT_DETECTED' },
-    { id: 'to-planner', duration: 700, activeNode: null, connection: ['intent', 'planner'], activeTool: null, label: `Intent: ${scenario.intentLabel}` },
-    { id: 'planner', duration: plannerDuration, activeNode: 'planner', connection: null, activeTool: null, label: 'Planning tool execution...', trace: 'PLAN_CREATED', planner: { tasks: scenario.tasks } },
+    { id: 'intent', duration: 600, activeNode: 'intent', connection: null, activeTool: null, label: `Intent: ${intentLabel}`, trace: 'INTENT_DETECTED' },
+    { id: 'to-planner', duration: 700, activeNode: null, connection: ['intent', 'planner'], activeTool: null, label: `Intent: ${intentLabel}` },
+    { id: 'planner', duration: plannerDuration, activeNode: 'planner', connection: null, activeTool: null, label: 'Planning tool execution...', trace: 'PLAN_CREATED', planner: { tasks } },
     { id: 'to-toolhub', duration: 700, activeNode: null, connection: ['planner', 'toolhub'], activeTool: null, label: 'Planning tool execution...' },
     { id: 'toolhub', duration: 500, activeNode: 'toolhub', connection: null, activeTool: null, label: `Routing to ${toolLabel}`, trace: `TOOL_SELECTED: ${toolLabel}` },
     { id: 'to-tool', duration: 900, activeNode: null, connection: ['toolhub', toolId], activeTool: toolId, packetCount: 3, label: `${toolLabel} executing...`, trace: 'TOOL_EXECUTION_STARTED' },
-    { id: 'tool-result', duration: 700, activeNode: null, connection: [toolId, 'toolhub'], activeTool: toolId, label: 'Results received', trace: 'TOOL_RESPONSE_RECEIVED' },
+    { id: 'tool-result', duration: 700, activeNode: null, connection: [toolId, 'toolhub'], activeTool: toolId, label: 'Results received', trace: 'TOOL_RESPONSE_RECEIVED', timingKey: 'searchMs' },
     { id: 'to-memory', duration: 700, activeNode: null, connection: ['toolhub', 'memory'], activeTool: null, label: 'Results received' },
-    { id: 'memory', duration: 700, activeNode: 'memory', connection: null, activeTool: null, label: 'Retrieving relevant context...', trace: 'MEMORY_RETRIEVAL', memory: { clusterId: scenario.memoryCluster, topK: TOP_K, threshold: SIM_THRESHOLD } },
+    { id: 'memory', duration: 700, activeNode: 'memory', connection: null, activeTool: null, label: 'Retrieving relevant context...', trace: 'MEMORY_RETRIEVAL', timingKey: 'memoryMs', memory: { clusterId: memoryCluster, topK: TOP_K, threshold: SIM_THRESHOLD } },
     { id: 'to-llm', duration: 700, activeNode: null, connection: ['memory', 'llm'], activeTool: null, label: 'Retrieving relevant context...' },
-    { id: 'llm', duration: 900, activeNode: 'llm', connection: null, activeTool: null, label: 'Generating response...', trace: 'LLM_REASONING' },
-    { id: 'to-response', duration: 700, activeNode: null, connection: ['llm', 'response'], activeTool: null, label: 'Generating response...' },
-    { id: 'response', duration: 300, activeNode: 'response', connection: null, activeTool: null, label: 'Response ready', final: true, response: scenario.response, trace: 'RESPONSE_GENERATED' },
+    { id: 'llm', duration: 900, activeNode: 'llm', connection: null, activeTool: null, label: 'Generating response...', trace: 'LLM_REASONING', timingKey: 'reasonMs' },
+    { id: 'to-verifier', duration: 650, activeNode: null, connection: ['llm', 'verifier'], activeTool: null, label: 'Checking claims against sources...' },
+    { id: 'verifier', duration: 700, activeNode: 'verifier', connection: null, activeTool: null, label: 'Verifier reading sources...', trace: 'VERIFIED' },
+    { id: 'to-response', duration: 700, activeNode: null, connection: ['verifier', 'response'], activeTool: null, label: 'Verifier reading sources...' },
+    { id: 'response', duration: 300, activeNode: 'response', connection: null, activeTool: null, label: 'Response ready', final: true, trace: 'RESPONSE_GENERATED' },
   ]
 }

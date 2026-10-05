@@ -4,7 +4,7 @@ import { Text, Billboard } from '@react-three/drei'
 import * as THREE from 'three'
 
 // Smaller satellite node representing one tool branching off the Tool Hub.
-export default function ToolNode({ tool, active, onHover, onSelect, selected }) {
+export default function ToolNode({ tool, active, dimmed, onHover, onSelect, selected }) {
   const mesh = useRef()
   const [hovered, setHovered] = useState(false)
   const color = new THREE.Color(tool.color)
@@ -42,13 +42,13 @@ export default function ToolNode({ tool, active, onHover, onSelect, selected }) 
         <meshStandardMaterial
           color={color}
           emissive={color}
-          emissiveIntensity={active ? 2 : hovered ? 1.2 : 0.5}
+          emissiveIntensity={active ? 2 : hovered || selected ? 1.2 : dimmed ? 0.08 : 0.5}
           roughness={0.3}
           metalness={0.5}
           toneMapped={false}
         />
       </mesh>
-      <pointLight color={color} intensity={active ? 1.8 : 0.4} distance={2.4} decay={2} />
+      <pointLight color={color} intensity={active ? 1.8 : dimmed ? 0.08 : 0.4} distance={2.4} decay={2} />
       <Billboard position={[0, 0.55, 0]}>
         <Text fontSize={0.14} color={hovered || active ? '#ffffff' : '#8a97b5'} anchorX="center" anchorY="middle">
           {tool.label}

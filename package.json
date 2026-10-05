@@ -6,15 +6,19 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "preview": "astro preview"
+    "preview": "astro preview",
+    "db:setup": "node --env-file=.env scripts/setupDatabase.js",
+    "db:import": "node --env-file=.env scripts/backfillEmbeddings.js"
   },
   "dependencies": {
     "@astrojs/node": "^11.1.6",
     "@astrojs/react": "^7.0.0",
     "@react-three/drei": "^9.114.3",
     "@react-three/fiber": "^8.17.10",
+    "@xenova/transformers": "^2.17.2",
     "astro": "^7.3.5",
     "lucide-react": "^0.447.0",
+    "pg": "^8.23.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "three": "^0.169.0"
