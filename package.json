@@ -3,9 +3,14 @@
   "type": "module",
   "version": "0.0.1",
   "private": true,
+  "packageManager": "pnpm@12.8.1",
+  "engines": {
+    "node": ">=20.3.0"
+  },
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
+    "start": "node ./dist/server/entry.mjs",
     "preview": "astro preview",
     "db:setup": "node --env-file=.env scripts/setupDatabase.js",
     "db:import": "node --env-file=.env scripts/backfillEmbeddings.js"
