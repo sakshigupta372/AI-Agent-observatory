@@ -78,6 +78,7 @@ export default function AgentScene() {
   const [soundOn, setSoundOn] = useState(false)
   const lastPacketKey = useRef(null)
   const replayLock = useRef(false)
+  const controlsRef = useRef(null)
 
   const exec = useAgentExecution()
   const frame = scrub != null ? exec.frames[scrub] : null
@@ -173,6 +174,17 @@ export default function AgentScene() {
   }
 
   const sameEdge = (edge, other) => edge && other && edge[0] === other[0] && edge[1] === other[1]
+
+  const zoomBy = (factor) => {
+    const controls = controlsRef.current
+    if (!controls) return
+    const camera = controls.object
+    const offset = camera.position.clone().sub(controls.target)
+    const distance = Math.min(controls.maxDistance, Math.max(controls.minDistance, offset.length() * factor))
+    offset.setLength(distance)
+    camera.position.copy(controls.target).add(offset)
+    controls.update()
+  }
 
   return (
     <div className={`canvas-wrap${exec.running ? ' cinematic' : ''}`}>
@@ -282,6 +294,7 @@ export default function AgentScene() {
         ))}
 
         <OrbitControls
+          ref={controlsRef}
           makeDefault
           enablePan
           enableZoom
@@ -298,6 +311,11 @@ export default function AgentScene() {
 
       <div className="letterbox top" />
       <div className="letterbox bottom" />
+
+      <div className="zoom-controls">
+        <button type="button" aria-label="Zoom in" onClick={() => zoomBy(0.8)}>+</button>
+        <button type="button" aria-label="Zoom out" onClick={() => zoomBy(1.25)}>−</button>
+      </div>
 
       {zone && (
         <div className="zone-badge" style={{ color: zone.color, borderColor: zone.color }}>
