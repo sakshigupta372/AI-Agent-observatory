@@ -312,6 +312,86 @@ function sourceSummary(sources) {
   return `Newest matching sources\n${lines.map((line) => `- ${line}`).join('\n')}`
 }
 
+// Small recursive-descent evaluator (no eval). Supports + - * / parentheses,
+// unary minus, and percent literals: "100 + 18%" adds 18% of the left side,
+// while a bare "18%" elsewhere means 0.18.
+function evaluateExpression(text) {
+  const tokens = text.match(/\d+(?:\.\d+)?%?|[()+\-*/]/g) || []
+  if (!tokens.length || tokens.join('') !== text.replace(/\s+/g, '')) return null
+  let i = 0
+  const peek = () => tokens[i]
+
+  const factor = () => {
+    const token = tokens[i++]
+    if (token === undefined) throw new Error('incomplete')
+    if (token === '(') {
+      const inner = expr()
+      if (tokens[i++] !== ')') throw new Error('unbalanced')
+      return { value: inner.value, pct: false }
+    }
+    if (token === '-') return { value: -factor().value, pct: false }
+    if (/^\d/.test(token)) {
+      return token.endsWith('%')
+        ? { value: parseFloat(token) / 100, pct: true }
+        : { value: Number(token), pct: false }
+    }
+    throw new Error('unexpected')
+  }
+
+  const term = () => {
+    let left = factor()
+    while (peek() === '*' || peek() === '/') {
+      const op = tokens[i++]
+      const right = factor()
+      if (op === '/' && right.value === 0) throw new Error('zero')
+      left = { value: op === '*' ? left.value * right.value : left.value / right.value, pct: false }
+    }
+    return left
+  }
+
+  const expr = () => {
+    let left = term()
+    while (peek() === '+' || peek() === '-') {
+      const op = tokens[i++]
+      const right = term()
+      const amount = right.pct ? left.value * right.value : right.value
+      left = { value: op === '+' ? left.value + amount : left.value - amount, pct: false }
+    }
+    return left
+  }
+
+  const result = expr()
+  return i === tokens.length ? result.value : null
+}
+
+// Turns phrasing like "18% GST on 45,000 plus a 2% fee" into arithmetic.
+// Returns null when the query is not a calculation it can fully account for,
+// so the caller can fall back to the simple pattern or ask for numbers.
+function computeNatural(query) {
+  let text = query
+    .toLowerCase()
+    .replace(/(\d),(?=\d)/g, '$1')
+    .replace(/[₹$]|\brs\.?(?=\s*\d)|\binr\b/g, ' ')
+    .replace(/(\d+(?:\.\d+)?)\s*%\s*(?:[a-z]+\s+)?(?:of|on)\s+(\d+(?:\.\d+)?)/g, '(($2)*($1)/100)')
+    .replace(/\b(?:plus|added to|add)\b/g, '+')
+    .replace(/\b(?:minus|less|subtract(?:ed)?)\b/g, '-')
+    .replace(/\b(?:multiplied by|times)\b|×/g, '*')
+    .replace(/\b(?:divided by|over)\b|÷/g, '/')
+    .replace(/(?<=\d)\s*x\s*(?=\d)/g, '*')
+
+  text = text.replace(/[^0-9.%+\-*/()\s]/g, ' ').replace(/\s+/g, ' ').trim()
+  if (!/[+\-*/]/.test(text)) return null
+
+  try {
+    const value = evaluateExpression(text)
+    if (value === null || !Number.isFinite(value)) return null
+    const shown = Number(value.toFixed(4)).toLocaleString('en-US', { maximumFractionDigits: 4 })
+    return `Result from the numbers you typed\n- ${text.replace(/\s+/g, ' ')} = ${shown}`
+  } catch (error) {
+    return error.message === 'zero' ? 'Cannot divide by zero.' : null
+  }
+}
+
 function compute(query) {
   const numbers = [...query.matchAll(/-?\d[\d,]*(?:\.\d+)?%?/g)]
     .map((match) => {
@@ -338,6 +418,9 @@ function compute(query) {
       `- ROI: ${roi.toFixed(2)}%`,
     ].join('\n')
   }
+
+  const natural = computeNatural(query)
+  if (natural) return natural
 
   const expr = query.match(/(-?\d[\d,]*(?:\.\d+)?)\s*([+\-*/x×÷])\s*(-?\d[\d,]*(?:\.\d+)?)/)
   if (!expr) {
