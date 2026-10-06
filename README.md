@@ -1,36 +1,47 @@
-# AI Agent Observatory — Real-Time 3D AI Agent Observability
+# AI Agent Observatory
 
-> **Watch an AI agent think, choose tools, retrieve memory, reason, verify, and respond — as it happens.**
+> **Watch an AI agent work — not just see its answer.**
 
-AI applications usually expose only:
+AI Agent Observatory is a **real-time 3D observability tool** for AI agents. It visualizes the agent's actual execution path from intent detection to final verification.
 
-```text
-Question → Answer
-```
-
-But the important part happens in between.
-
-**Why did the agent choose that tool?**
-**What did it retrieve from memory?**
-**How long did each step take?**
-**Was the final answer actually supported by its sources?**
-
-**AI Agent Observatory** makes that invisible execution layer visible through a real-time 3D execution graph.
-
-The graph doesn't show what the agent *could* do.
-
-**It shows what the agent actually did.**
-
----
-
-## 🎥 What is this?
-
-AI Agent Observatory is a **real-time 3D observability interface for an autonomous AI agent pipeline**.
-
-You ask a question, and the agent executes a multi-stage workflow:
+### 🔍 What it shows
 
 ```text
 User
  ↓
-In
+Intent → Planner → Tool → Memory
+ ↓
+Reasoning → Verification → Response
 ```
+
+* Real agent execution visualized in 3D
+* Dynamic tool selection
+* Web Search, Database, Calculator & External API
+* Semantic memory with `pgvector`
+* Real-time streaming with SSE
+* Claim-level response verification
+* Tool/API latency and execution trace
+
+### 🛠️ Tech Stack
+
+**Astro · React · Three.js · React Three Fiber · Groq · Tavily · PostgreSQL · pgvector · Neon · Transformers.js · SSE**
+
+### 🧠 Architecture
+
+```text
+User → Intent → Planner → Tool Hub
+                    ↓
+             Tool Execution
+                    ↓
+              pgvector Memory
+                    ↓
+                Reasoning
+                    ↓
+               Verifier
+                    ↓
+                Response
+```
+
+The orchestration is implemented directly instead of using LangChain/LlamaIndex, keeping routing, retrieval, tool execution, and verification visible.
+
+> **The graph isn't just showing what the agent could do. It shows what the agent actually did.**
