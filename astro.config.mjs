@@ -8,5 +8,9 @@ export default defineConfig({
   integrations: [react()],
   server: {
     port: 4331,
+    // The standalone server defaults to localhost, which a hosting proxy cannot
+    // reach. Render sets RENDER=true at build time, so bind all interfaces there
+    // while keeping local dev private to this machine.
+    host: process.env.RENDER === 'true' || process.env.HOST === '0.0.0.0' ? true : false,
   },
 })
