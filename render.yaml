@@ -1,9 +1,3 @@
-databases:
-  - name: observatory-db
-    databaseName: observatory
-    plan: free
-    postgresMajorVersion: 16
-
 services:
   - type: web
     name: ai-agent-observatory
@@ -11,14 +5,18 @@ services:
     plan: free
     buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
     startCommand: pnpm start
+    healthCheckPath: /api/memory
     envVars:
       - key: NODE_VERSION
-        value: 20.18.0
-      - key: DATABASE_URL
-        fromDatabase:
-          name: observatory-db
-          property: connectionString
+        value: 22.18.0
+      # The Astro Node adapter must listen on all interfaces for Render's proxy.
+      - key: HOST
+        value: 0.0.0.0
+      # Secrets are entered in the Render dashboard, never committed.
       - key: GROQ_API_KEY
         sync: false
       - key: TAVILY_API_KEY
+        sync: false
+      # Neon connection string (the database that already holds the pgvector tables).
+      - key: DATABASE_URL
         sync: false
