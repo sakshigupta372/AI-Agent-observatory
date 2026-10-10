@@ -8,6 +8,14 @@ const STEER_TOOLS = [
   ['external_api', 'Document'],
 ]
 
+const INJECTIONS = [
+  ['', 'No failure'],
+  ['hallucinated_claim', 'Inject: fake claim'],
+  ['irrelevant_retrieval', 'Inject: wrong sources'],
+  ['empty_retrieval', 'Inject: empty search'],
+  ['tool_timeout', 'Inject: tool timeout'],
+]
+
 export default function RunConsole({
   running,
   label,
@@ -23,6 +31,7 @@ export default function RunConsole({
   canExport,
 }) {
   const [query, setQuery] = useState('')
+  const [inject, setInject] = useState('')
   const [scrub, setScrub] = useState(frames.length ? frames.length - 1 : 0)
 
   useEffect(() => {
@@ -33,7 +42,7 @@ export default function RunConsole({
     e.preventDefault()
     const q = query.trim()
     if (!q || running) return
-    onRun(q)
+    onRun(q, { inject: inject || undefined })
   }
 
   return (
@@ -81,6 +90,11 @@ export default function RunConsole({
           onChange={(e) => setQuery(e.target.value)}
           disabled={running}
         />
+        <select className="inject-select" value={inject} onChange={(e) => setInject(e.target.value)} disabled={running} title="Force a failure so you can watch the verifier and replanner react">
+          {INJECTIONS.map(([value, name]) => (
+            <option key={value} value={value}>{name}</option>
+          ))}
+        </select>
         <button type="button" className={soundOn ? 'on' : ''} onClick={onToggleSound}>
           {soundOn ? 'Sound on' : 'Sound'}
         </button>
@@ -94,7 +108,7 @@ export default function RunConsole({
 
       <div className="example-chips">
         {EXAMPLE_PROMPTS.map((p) => (
-          <button key={p} type="button" disabled={running} onClick={() => onRun(p)}>
+          <button key={p} type="button" disabled={running} onClick={() => onRun(p, { inject: inject || undefined })}>
             {p}
           </button>
         ))}

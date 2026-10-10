@@ -37,6 +37,9 @@ const IDLE_STATE = {
   visitedEdges: [],
   shockKey: 0,
   query: '',
+  feedbackCount: 0,
+  replans: [],
+  runTrace: null,
 }
 
 async function postJson(body) {
@@ -50,11 +53,11 @@ async function postJson(body) {
   return data
 }
 
-async function streamExecute(query, plan, onEvent) {
+async function streamExecute(query, plan, onEvent, extra = {}) {
   const res = await fetch('/api/agent', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phase: 'execute', query, plan }),
+    body: JSON.stringify({ phase: 'execute', query, plan, ...extra }),
   })
   if (!res.ok || !res.body) {
     const data = await res.json().catch(() => null)
@@ -120,7 +123,7 @@ export function useAgentExecution() {
     }))
   }, [])
 
-  const run = useCallback(async (query) => {
+  const run = useCallback(async (query, options = {}) => {
     const id = ++runId.current
     const alive = () => runId.current === id
     const frames = []
@@ -276,11 +279,41 @@ export function useAgentExecution() {
             setState((prev) => ({ ...prev, sources: event.sources || [] }))
           } else if (event.type === 'status') {
             setState((prev) => ({ ...prev, label: event.label || prev.label }))
+          } else if (event.type === 'reset') {
+            setState((prev) => ({ ...prev, streamText: '' }))
+          } else if (event.type === 'replan') {
+            // A real verify -> replan feedback, emitted by the server the moment it happens.
+            setState((prev) => ({
+              ...prev,
+              feedbackCount: prev.feedbackCount + 1,
+              replans: [...prev.replans, event],
+              activeNodeId: 'planner',
+              activeConnection: ['verifier', 'planner'],
+              activeTool: null,
+              label: `Replanning (attempt ${event.attempt}): ${event.reason}`,
+              packetTrigger: { key: `replan-${event.attempt}-${performance.now()}`, connection: ['verifier', 'planner'], count: 3, duration: 900 },
+              trace: [
+                ...prev.trace,
+                {
+                  id: `replan-${event.attempt}-${performance.now()}`,
+                  time: new Date().toLocaleTimeString('en-GB'),
+                  event: `REPLAN_TRIGGERED (attempt ${event.attempt})`,
+                  latency: 0,
+                  failed: true,
+                  detail: {
+                    step: 'replan',
+                    phase: 'Verifier fed a failure back to the Planner',
+                    connection: ['verifier', 'planner'],
+                    note: `Why: ${event.reason}. New search: "${event.revisedQuery}". Retries left: ${event.retriesLeft}.`,
+                  },
+                },
+              ],
+            }))
           }
-        })
+        }, options.inject ? { inject: options.inject } : {})
         if (!alive()) return
         if (live?.confidence) {
-          setState((prev) => ({ ...prev, confidence: live.confidence, sources: live.sources || prev.sources }))
+          setState((prev) => ({ ...prev, confidence: live.confidence, sources: live.sources || prev.sources, runTrace: live.trace || null }))
         }
         await delay(280)
         continue
@@ -377,6 +410,9 @@ export function useAgentExecution() {
       frames,
       ghostEdges,
       visitedEdges: visited,
+      feedbackCount: prev.feedbackCount,
+      replans: prev.replans,
+      runTrace: live?.trace || prev.runTrace,
       shockKey: (prev.error && !prev.response) || (live?.error && !live?.response) ? prev.shockKey + 1 : prev.shockKey,
       query,
     }))

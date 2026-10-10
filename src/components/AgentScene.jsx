@@ -10,6 +10,7 @@ import DataPacket from './DataPacket.jsx'
 import RunConsole from './RunConsole.jsx'
 import ResponsePanel from './ResponsePanel.jsx'
 import TracePanel from './TracePanel.jsx'
+import SpanInspector from './SpanInspector.jsx'
 import MemorySpace from './MemorySpace.jsx'
 import MemoryStatsPanel from './MemoryStatsPanel.jsx'
 import PlannerTasks from './PlannerTasks.jsx'
@@ -76,6 +77,7 @@ export default function AgentScene() {
   const [memories, setMemories] = useState([])
   const [scrub, setScrub] = useState(null)
   const [soundOn, setSoundOn] = useState(false)
+  const [inspectOpen, setInspectOpen] = useState(false)
   const lastPacketKey = useRef(null)
   const replayLock = useRef(false)
   const controlsRef = useRef(null)
@@ -117,7 +119,8 @@ export default function AgentScene() {
     const from = positionOf(a)
     const to = positionOf(b)
     if (!from || !to) return
-    const color = a === 'memory' || b === 'memory' ? '#ff8fd0' : a === 'toolhub' || b === 'toolhub' ? '#ffb168' : '#9fe8ff'
+    const feedback = a === 'verifier' && b === 'planner'
+    const color = feedback ? '#ff7a8a' : a === 'memory' || b === 'memory' ? '#ff8fd0' : a === 'toolhub' || b === 'toolhub' ? '#ffb168' : '#9fe8ff'
     const spawned = Array.from({ length: count }).map((_, i) => ({
       id: `${key}-${i}-${Math.random()}`,
       from,
@@ -216,6 +219,28 @@ export default function AgentScene() {
             onHover={(over) => setHovered(over ? edgeInfo(a, b) : null)}
           />
         ))}
+
+        {exec.feedbackCount > 0 && (
+          <Connection
+            from={nodeById.verifier.position}
+            to={nodeById.planner.position}
+            active
+            color="#ff7a8a"
+            onHover={(over) =>
+              setHovered(
+                over
+                  ? {
+                      id: 'feedback-edge',
+                      label: 'VERIFIER → PLANNER',
+                      status: 'FEEDBACK',
+                      description: `The verifier rejected claims and sent the failure back to the planner ${exec.feedbackCount} time(s) in this run.`,
+                      tech: 'Only drawn when a replan actually happened. Retry limit: 2.',
+                    }
+                  : null
+              )
+            }
+          />
+        )}
 
         {TOOL_CONNECTIONS.map(([a, b]) => (
           <Connection
@@ -331,7 +356,8 @@ export default function AgentScene() {
       )}
 
       <InfoPanel node={displayed} />
-      <TracePanel trace={exec.trace} running={exec.running} />
+      <TracePanel trace={exec.trace} running={exec.running} canInspect={Boolean(exec.runTrace) && !exec.running} onInspect={() => setInspectOpen(true)} />
+      {inspectOpen && exec.runTrace && <SpanInspector trace={exec.runTrace} onClose={() => setInspectOpen(false)} />}
       <MemoryStatsPanel stats={exec.memoryStats} />
       <ResponsePanel
         response={exec.running ? null : exec.response}

@@ -720,3 +720,138 @@ body {
   color: #5c6885;
   margin-bottom: 1px;
 }
+
+/* --- Run inspector (opens over the scene) --- */
+.trace-inspect {
+  padding: 3px 9px;
+  font-family: inherit;
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: #05070d;
+  background: #7fd9ff;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.trace-inspect:hover {
+  background: #a8e6ff;
+}
+
+.inspector {
+  position: absolute;
+  top: 72px;
+  left: 24px;
+  bottom: 190px;
+  width: min(640px, calc(100vw - 380px));
+  z-index: 9;
+  display: flex;
+  flex-direction: column;
+  background: rgba(8, 13, 24, 0.92);
+  border: 1px solid rgba(120, 170, 255, 0.28);
+  border-radius: 14px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+}
+
+.inspector-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.inspector-kicker {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 10.5px;
+  letter-spacing: 1.6px;
+  color: #7fd9ff;
+}
+
+.inspector-head p {
+  margin: 4px 0 0;
+  color: #e8eefc;
+  font-size: 14px;
+}
+
+.inspector-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.inspector-actions a {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 11px;
+  color: #7fd9ff;
+  text-decoration: none;
+}
+
+.inspector-actions a:hover {
+  text-decoration: underline;
+}
+
+.inspector-actions button {
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: none;
+  color: #7f8fb5;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.inspector-body {
+  flex: 1;
+  overflow: auto;
+  padding: 14px 18px 18px;
+}
+
+.site-nav {
+  position: absolute;
+  top: 18px;
+  right: 24px;
+  z-index: 8;
+  display: flex;
+  gap: 8px;
+}
+
+.site-nav a {
+  padding: 6px 12px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: #cfe3ff;
+  text-decoration: none;
+  background: rgba(10, 16, 28, 0.55);
+  border: 1px solid rgba(120, 170, 255, 0.22);
+  border-radius: 999px;
+  backdrop-filter: blur(12px);
+}
+
+.site-nav a:hover,
+.site-nav a.current {
+  color: #05070d;
+  background: #7fd9ff;
+}
+
+.inject-select {
+  padding: 0 8px;
+  height: 34px;
+  font-size: 12px;
+  color: #ffd2e8;
+  background: rgba(255, 143, 208, 0.08);
+  border: 1px solid rgba(255, 143, 208, 0.3);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.inject-select option {
+  background: #0a101c;
+  color: #e8eefc;
+}

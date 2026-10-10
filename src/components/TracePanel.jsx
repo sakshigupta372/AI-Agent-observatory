@@ -7,7 +7,7 @@ function formatLatency(ms) {
 
 // Developer-style live execution trace, right side of the screen.
 // Click a row to expand its underlying technical detail.
-export default function TracePanel({ trace, running }) {
+export default function TracePanel({ trace, running, canInspect, onInspect }) {
   const [expandedId, setExpandedId] = useState(null)
   const listRef = useRef(null)
 
@@ -22,6 +22,11 @@ export default function TracePanel({ trace, running }) {
       <div className="trace-header">
         <span>AGENT TRACE</span>
         {running && <span className="trace-live">● LIVE</span>}
+        {!running && canInspect && (
+          <button type="button" className="trace-inspect" onClick={onInspect}>
+            INSPECT RUN
+          </button>
+        )}
       </div>
 
       <div className="trace-list" ref={listRef}>

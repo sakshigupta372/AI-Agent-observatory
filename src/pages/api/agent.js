@@ -1,5 +1,6 @@
 import { classify } from '../../data/scenarios.js'
 import { addMemory, listMemories, searchCustomers, searchMemories } from '../../server/memoryStore.js'
+import { addUsage, createTracer, saveTrace } from '../../server/traces.js'
 
 const GROQ_API_KEY = import.meta.env.GROQ_API_KEY
 const TAVILY_API_KEY = import.meta.env.TAVILY_API_KEY
@@ -72,17 +73,18 @@ async function groqFetch(body, attempts = 3) {
   )
 }
 
-async function askGroq(messages, { jsonMode = false, temperature = 0.2 } = {}) {
+async function askGroq(messages, { jsonMode = false, temperature = 0.2, meter = null } = {}) {
   const body = {
     model: MODEL,
     temperature,
-    max_tokens: 700,
+    max_tokens: 1400,
     messages,
   }
   if (jsonMode) body.response_format = { type: 'json_object' }
 
   const res = await groqFetch(body)
   const data = await res.json()
+  addUsage(meter, data.usage)
   return data.choices?.[0]?.message?.content?.trim() ?? ''
 }
 
@@ -511,12 +513,13 @@ function reasonMessages(query, plan, toolContext, memories) {
   ]
 }
 
-async function streamGroq(messages, onDelta) {
+async function streamGroq(messages, onDelta, meter = null) {
   const res = await groqFetch({
     model: MODEL,
     temperature: 0.2,
-    max_tokens: 700,
+    max_tokens: 1400,
     stream: true,
+    stream_options: { include_usage: true },
     messages,
   })
   if (!res.body) throw new Error('Groq returned no response body')
@@ -525,6 +528,7 @@ async function streamGroq(messages, onDelta) {
   const decoder = new TextDecoder()
   let buffer = ''
   let full = ''
+  let lastUsage = null
   while (true) {
     const { done, value } = await reader.read()
     if (done) break
@@ -538,6 +542,8 @@ async function streamGroq(messages, onDelta) {
       if (!payload || payload === '[DONE]') continue
       try {
         const chunk = JSON.parse(payload)
+        const reported = chunk.usage || chunk.x_groq?.usage
+        if (reported) lastUsage = reported
         const delta = chunk.choices?.[0]?.delta?.content || ''
         if (delta) {
           full += delta
@@ -548,6 +554,7 @@ async function streamGroq(messages, onDelta) {
       }
     }
   }
+  addUsage(meter, lastUsage)
   if (!full.trim()) throw new Error('The model returned an empty stream')
   return full.trim()
 }
@@ -572,9 +579,9 @@ function localVerdicts(response, sources) {
   })
 }
 
-async function verify(response, sources) {
+async function verify(response, sources, meter = null) {
   const local = localVerdicts(response, sources)
-  if (!sources.length || !local.length) return local
+  if (!sources.length || !local.length) return { verdicts: local, via: 'local', note: 'No sources to compare against' }
   try {
     const text = await askGroq(
       [
@@ -589,17 +596,18 @@ async function verify(response, sources) {
           content: `Claims:\n${local.map((item) => `- ${item.text}`).join('\n')}\n\nSources:\n${formatSources(sources)}`,
         },
       ],
-      { jsonMode: true, temperature: 0 }
+      { jsonMode: true, temperature: 0, meter }
     )
     const parsed = JSON.parse(text)
-    if (!Array.isArray(parsed.verdicts) || !parsed.verdicts.length) return local
-    return parsed.verdicts.map((verdict, index) => ({
+    if (!Array.isArray(parsed.verdicts) || !parsed.verdicts.length) return { verdicts: local, via: 'local', note: 'Model returned no verdicts' }
+    const modelVerdicts = parsed.verdicts.map((verdict, index) => ({
       text: String(verdict.text || local[index]?.text || ''),
       supported: Boolean(verdict.supported),
       note: String(verdict.note || ''),
     }))
-  } catch {
-    return local
+    return { verdicts: modelVerdicts, via: 'model', note: null }
+  } catch (err) {
+    return { verdicts: local, via: 'local', note: `Model verification failed (${err.message.slice(0, 120)}), used word-overlap check` }
   }
 }
 
@@ -638,6 +646,65 @@ async function emitText(send, text) {
   for (const part of parts) send({ type: 'token', text: part })
 }
 
+const INJECTIONS = new Set(['tool_timeout', 'empty_retrieval', 'irrelevant_retrieval', 'hallucinated_claim'])
+const IRRELEVANT_QUERY = 'history of medieval pottery kilns in northern Europe'
+const FABRICATED_CLAIM = '- The company announced a merger with Atlantis Holdings in 1850, according to its founder Napoleon Bonaparte.'
+
+function normalizeConfig(raw) {
+  const retries = Number(raw?.maxRetries ?? 1)
+  return {
+    verify: raw?.verify !== false,
+    replan: raw?.replan !== false,
+    maxRetries: Math.min(2, Math.max(0, Number.isFinite(retries) ? Math.round(retries) : 1)),
+    remember: raw?.remember !== false,
+  }
+}
+
+const STOP = new Set(['what', 'which', 'who', 'when', 'where', 'does', 'this', 'that', 'with', 'from', 'about', 'tell', 'show', 'give', 'latest', 'news', 'best', 'have', 'many'])
+
+// Share of the question's content words that appear anywhere in the retrieved
+// text. A cheap, transparent signal for "did search return the right topic".
+function relevanceOf(query, sources) {
+  const words = [...new Set(String(query).toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 3 && !STOP.has(w)))]
+  if (!words.length || !sources.length) return 0
+  const haystack = sources.map((s) => `${s.title} ${s.content}`).join(' ').toLowerCase()
+  return Number((words.filter((w) => haystack.includes(w)).length / words.length).toFixed(2))
+}
+
+async function planRetry({ query, reason, unsupported, sources, meter }) {
+  const fallback = { reason, searchQuery: isFreshQuery(query) ? `${query} official updates` : `${query} overview` }
+  try {
+    const text = await askGroq(
+      [
+        {
+          role: 'system',
+          content:
+            'You are the planner of a web-search agent. The previous attempt failed verification. ' +
+            'Return JSON only: {"reason":"one short sentence on what went wrong","searchQuery":"a better web search query"}. ' +
+            'The new query must target the facts the user actually asked about.',
+        },
+        {
+          role: 'user',
+          content:
+            `User request: ${query}\nFailure: ${reason}\n` +
+            `Unsupported claims:\n${unsupported.map((item) => `- ${item.text}`).join('\n') || '- none'}\n` +
+            `Previous source titles:\n${sources.map((s) => `- ${s.title}`).join('\n') || '- none'}`,
+        },
+      ],
+      { jsonMode: true, temperature: 0, meter }
+    )
+    const parsed = JSON.parse(text)
+    let searchQuery = String(parsed.searchQuery || '').trim()
+    if (!searchQuery) return fallback
+    if (isFreshQuery(query) && !isFreshQuery(searchQuery)) searchQuery += ' latest'
+    return { reason: String(parsed.reason || reason).slice(0, 220), searchQuery: searchQuery.slice(0, 200) }
+  } catch {
+    return fallback
+  }
+}
+
+const supportRate = (verdicts) => (verdicts.length ? verdicts.filter((item) => item.supported).length / verdicts.length : 1)
+
 export async function POST({ request }) {
   let body
   try {
@@ -657,123 +724,269 @@ export async function POST({ request }) {
 
   const plan = sanitizePlan(body?.plan, query)
   if (isFreshQuery(query) && !plan.steered) plan.tool = 'web_search'
+  const config = normalizeConfig(body?.config)
+  const inject = INJECTIONS.has(body?.inject) && plan.tool === 'web_search' ? body.inject : null
 
   return sse(async (send) => {
-    const memoryStarted = performance.now()
-    const retrieved = await searchMemories(query, plan.memoryCluster)
-    const memoryMs = Math.round(performance.now() - memoryStarted)
+    const tracer = createTracer({ query, config, injected: inject })
+    const { meter, span } = tracer
 
-    let tool
-    try {
-      tool = await runTool(query, plan)
-    } catch (err) {
-      send({
-        type: 'done',
-        error: err.message,
-        response: null,
-        sources: [],
-        retrieved,
-        memories: await listMemories(),
-        verdicts: [],
-        confidence: confidenceFor({ routedBy: plan.routedBy, tool: plan.tool, sources: [], verdicts: [], error: err.message }),
-        asOf: new Date().toISOString(),
-        timings: { searchMs: 0, reasonMs: 0, memoryMs },
-        intentLabel: plan.intentLabel,
+    const finish = async ({ status, error = null, response = null, sources = [], verdicts = [], retrieved = [], searchWindow = null, timings, attempts, replans }) => {
+      const memories = await listMemories()
+      const trace = tracer.summary({
         tool: plan.tool,
-      })
-      return
-    }
-
-    send({ type: 'sources', sources: tool.sources })
-
-    if (plan.tool === 'web_search' && tool.sources.length === 0) {
-      const error = 'No current web sources were returned, so no news was filled in from model memory.'
-      send({
-        type: 'done',
+        intentLabel: plan.intentLabel,
+        routedBy: plan.routedBy,
+        status,
         error,
-        response: null,
-        sources: [],
+        attempts,
+        replans: replans.length,
+        claims: verdicts.length,
+        claimsSupported: verdicts.filter((item) => item.supported).length,
+        response,
+      })
+      const saved = await saveTrace(trace)
+      send({
+        type: 'done',
+        response,
+        error,
+        sources,
         retrieved,
-        memories: await listMemories(),
-        verdicts: [],
-        confidence: confidenceFor({ routedBy: plan.routedBy, tool: plan.tool, sources: [], verdicts: [], error }),
+        memories,
+        verdicts,
+        confidence: confidenceFor({ routedBy: plan.routedBy, tool: plan.tool, sources, verdicts, error: status === 'failed' ? error : null }),
         asOf: new Date().toISOString(),
-        timings: { searchMs: tool.searchMs, reasonMs: 0, memoryMs },
+        searchWindow,
+        timings,
         intentLabel: plan.intentLabel,
         tool: plan.tool,
+        attempts,
+        replans,
+        traceId: trace.id,
+        trace: { ...trace, persisted: saved.saved, persistNote: saved.reason || null },
       })
-      return
     }
 
-    const reasonStarted = performance.now()
-    let response = null
-    let error = null
-    const direct =
-      plan.tool === 'calculator' ||
-      (plan.tool === 'database' && tool.toolContext.startsWith('No customer matched'))
-    try {
-      if (direct) {
-        response = tool.toolContext
-        await emitText(send, response)
-      } else {
-        response = await streamGroq(reasonMessages(query, plan, tool.toolContext, retrieved), (delta) => {
-          send({ type: 'token', text: delta })
-        })
-      }
-    } catch (err) {
-      error = err.message
-      if (plan.tool === 'web_search' && tool.sources.length) {
-        response = sourceSummary(tool.sources)
-        error = `${err.message} This summary is built only from the source titles and dates.`
-        await emitText(send, response)
-      } else if (plan.tool === 'database' && tool.rows?.length) {
-        response = customerSummary(tool.rows)
-        error = `${err.message} These rows come straight from the database.`
-        await emitText(send, response)
-      } else if (plan.tool === 'calculator') {
-        response = tool.toolContext
-        error = null
-        await emitText(send, response)
-      }
-    }
-    const reasonMs = Math.round(performance.now() - reasonStarted)
-
-    send({ type: 'status', label: 'Verifier reading sources...' })
-    const verdicts = response ? await verify(response, tool.sources) : []
-    const confidence = confidenceFor({
-      routedBy: plan.routedBy,
-      tool: plan.tool,
-      sources: tool.sources,
-      verdicts,
-      error,
+    await span('plan', 'planner', { query, note: 'Routing happened in the earlier /route request' }, async (rec) => {
+      rec.output = { tool: plan.tool, intent: plan.intentLabel, routedBy: plan.routedBy, tasks: plan.tasks, steered: Boolean(plan.steered), injected: inject }
     })
 
-    let memories = await listMemories()
-    if (response) {
+    const memoryStarted = performance.now()
+    const retrieved = await span('memory_retrieval', 'memory', { query, cluster: plan.memoryCluster }, async (rec) => {
+      const hits = await searchMemories(query, plan.memoryCluster)
+      rec.output = { hits: hits.length, scores: hits.map((hit) => hit.score), matches: hits.map((hit) => hit.query) }
+      return hits
+    })
+    const memoryMs = Math.round(performance.now() - memoryStarted)
+
+    const replans = []
+    let attempt = 1
+    let searchQuery = query
+    let toolResult = null
+    let best = null
+    let lastError = null
+    let searchMs = 0
+    let reasonMs = 0
+    const canReplan = () => config.replan && plan.tool === 'web_search' && replans.length < config.maxRetries
+
+    const announceReplan = async (reason, unsupported, previousSources) => {
+      const planned = await span(
+        'replan',
+        'planner',
+        { reason, unsupported: unsupported.map((item) => item.text), previousSources: previousSources.map((s) => s.title) },
+        async (rec) => {
+          const next = await planRetry({ query, reason, unsupported, sources: previousSources, meter })
+          rec.output = next
+          return next
+        },
+        { attempt }
+      )
+      replans.push({ attempt, reason: planned.reason, unsupported: unsupported.map((item) => item.text), revisedQuery: planned.searchQuery })
+      send({ type: 'replan', ...replans[replans.length - 1], retriesLeft: config.maxRetries - replans.length })
+      searchQuery = planned.searchQuery
+      attempt += 1
+    }
+
+    while (true) {
+      let toolError = null
+      toolResult = null
+      try {
+        toolResult = await span(
+          `tool:${plan.tool}`,
+          'tool',
+          { tool: plan.tool, query: attempt === 1 ? query : searchQuery, injectedFailure: attempt === 1 ? inject : null },
+          async (rec) => {
+            let result
+            if (attempt === 1 && inject === 'tool_timeout') {
+              await sleep(1500)
+              throw new Error('Injected failure: the search tool timed out after 1500 ms')
+            } else if (attempt === 1 && inject === 'empty_retrieval') {
+              result = { sources: [], toolContext: formatSources([]), searchMs: 0, answerFrom: 'model', searchWindow: 'none' }
+            } else if (attempt === 1 && inject === 'irrelevant_retrieval') {
+              result = await runTool(IRRELEVANT_QUERY, plan)
+            } else if (attempt > 1) {
+              const started = performance.now()
+              const found = await tavilySearch(searchQuery)
+              result = {
+                sources: found.results,
+                toolContext: formatSources(found.results),
+                searchWindow: found.window,
+                searchMs: Math.round(performance.now() - started),
+                answerFrom: 'model',
+              }
+            } else {
+              result = await runTool(query, plan)
+            }
+            rec.output = {
+              sourceCount: result.sources.length,
+              titles: result.sources.map((s) => s.title),
+              relevance: plan.tool === 'web_search' ? relevanceOf(query, result.sources) : null,
+              window: result.searchWindow || null,
+              rows: result.rows?.map((row) => row.name) || null,
+              preview: String(result.toolContext || '').slice(0, 500),
+            }
+            return result
+          },
+          { attempt }
+        )
+        searchMs += toolResult.searchMs || 0
+      } catch (err) {
+        toolError = err.message
+      }
+
+      const empty = !toolError && plan.tool === 'web_search' && toolResult.sources.length === 0
+      if (toolError || empty) {
+        const reason = toolError || 'The search returned no sources'
+        if (canReplan()) {
+          await announceReplan(reason, [], toolResult?.sources || [])
+          continue
+        }
+        if (best) break
+        lastError = toolError || 'No current web sources were returned, so no news was filled in from model memory.'
+        send({ type: 'sources', sources: [] })
+        await finish({
+          status: 'failed',
+          error: lastError,
+          retrieved,
+          timings: { searchMs, reasonMs: 0, memoryMs },
+          attempts: attempt,
+          replans,
+        })
+        return
+      }
+
+      send({ type: 'sources', sources: toolResult.sources })
+
+      const reasonStarted = performance.now()
+      let response = null
+      let error = null
+      const direct =
+        plan.tool === 'calculator' ||
+        (plan.tool === 'database' && toolResult.toolContext.startsWith('No customer matched'))
+      const retryNote = replans.length
+        ? `\n\nA previous draft was rejected because these claims were not supported by any source: ${replans[replans.length - 1].unsupported.join(' | ') || 'the earlier search returned nothing usable'}. Write a new answer using only the sources above.`
+        : ''
+      if (attempt > 1) send({ type: 'reset' })
+
+      try {
+        await span(
+          'reasoning',
+          'llm',
+          { tool: plan.tool, sourceCount: toolResult.sources.length, retry: attempt > 1, model: MODEL },
+          async (rec) => {
+            if (direct) {
+              response = toolResult.toolContext
+              await emitText(send, response)
+            } else {
+              const messages = reasonMessages(query, plan, toolResult.toolContext, retrieved)
+              if (retryNote) messages[1].content += retryNote
+              response = await streamGroq(messages, (delta) => send({ type: 'token', text: delta }), meter)
+            }
+            if (attempt === 1 && inject === 'hallucinated_claim') {
+              response = `${response}\n${FABRICATED_CLAIM}`
+              await emitText(send, `\n${FABRICATED_CLAIM}`)
+              rec.input.injectedFailure = 'hallucinated_claim'
+            }
+            rec.output = { chars: response.length, answer: response }
+          },
+          { attempt }
+        )
+      } catch (err) {
+        error = err.message
+        if (plan.tool === 'web_search' && toolResult.sources.length) {
+          response = sourceSummary(toolResult.sources)
+          error = `${err.message} This summary is built only from the source titles and dates.`
+          await emitText(send, response)
+        } else if (plan.tool === 'database' && toolResult.rows?.length) {
+          response = customerSummary(toolResult.rows)
+          error = `${err.message} These rows come straight from the database.`
+          await emitText(send, response)
+        } else if (plan.tool === 'calculator') {
+          response = toolResult.toolContext
+          error = null
+          await emitText(send, response)
+        }
+      }
+      reasonMs += Math.round(performance.now() - reasonStarted)
+
+      let verdicts = []
+      if (response && config.verify) {
+        send({ type: 'status', label: 'Verifier reading sources...' })
+        verdicts = await span(
+          'verification',
+          'verifier',
+          { claims: String(response).split('\n').filter((line) => line.trim().startsWith('- ')).length, sourceCount: toolResult.sources.length },
+          async (rec) => {
+            const checked = await verify(response, toolResult.sources, meter)
+            const result = checked.verdicts
+            rec.output = {
+              via: checked.via,
+              fallbackNote: checked.note,
+              supported: result.filter((item) => item.supported).length,
+              unsupported: result.filter((item) => !item.supported).map((item) => item.text),
+              verdicts: result,
+            }
+            return result
+          },
+          { attempt }
+        )
+      }
+
+      const rate = supportRate(verdicts)
+      if (!best || rate >= best.rate) {
+        best = { response, error, verdicts, sources: toolResult.sources, searchWindow: toolResult.searchWindow || null, rate }
+      }
+
+      const unsupported = verdicts.filter((item) => !item.supported)
+      if (config.verify && unsupported.length && toolResult.sources.length && canReplan()) {
+        await announceReplan(`${unsupported.length} claim(s) were not supported by the retrieved sources`, unsupported, toolResult.sources)
+        continue
+      }
+      break
+    }
+
+    const finalAnswer = best
+    if (config.remember && !inject && finalAnswer.response) {
       await addMemory({
         query,
         clusterId: plan.memoryCluster,
-        summary: response.slice(0, 320),
+        summary: finalAnswer.response.slice(0, 320),
         intentLabel: plan.intentLabel,
         tool: plan.tool,
       })
-      memories = await listMemories()
     }
 
-    send({
-      type: 'done',
-      response,
-      error,
-      sources: tool.sources,
+    await finish({
+      status: !finalAnswer.response ? 'failed' : finalAnswer.error ? 'degraded' : 'ok',
+      error: finalAnswer.error,
+      response: finalAnswer.response,
+      sources: finalAnswer.sources,
+      verdicts: finalAnswer.verdicts,
       retrieved,
-      memories,
-      verdicts,
-      confidence,
-      asOf: new Date().toISOString(),
-      searchWindow: tool.searchWindow || null,
-      timings: { searchMs: tool.searchMs, reasonMs, memoryMs },
-      intentLabel: plan.intentLabel,
-      tool: plan.tool,
+      searchWindow: finalAnswer.searchWindow,
+      timings: { searchMs, reasonMs, memoryMs },
+      attempts: attempt,
+      replans,
     })
   })
 }
