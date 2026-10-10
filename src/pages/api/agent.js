@@ -664,9 +664,12 @@ const STOP = new Set(['what', 'which', 'who', 'when', 'where', 'does', 'this', '
 
 // Share of the question's content words that appear anywhere in the retrieved
 // text. A cheap, transparent signal for "did search return the right topic".
+const OFF_TOPIC_BELOW = 0.2
+
 function relevanceOf(query, sources) {
   const words = [...new Set(String(query).toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 3 && !STOP.has(w)))]
-  if (!words.length || !sources.length) return 0
+  if (!sources.length) return 0
+  if (!words.length) return 1
   const haystack = sources.map((s) => `${s.title} ${s.content}`).join(' ').toLowerCase()
   return Number((words.filter((w) => haystack.includes(w)).length / words.length).toFixed(2))
 }
@@ -855,8 +858,16 @@ export async function POST({ request }) {
       }
 
       const empty = !toolError && plan.tool === 'web_search' && toolResult.sources.length === 0
-      if (toolError || empty) {
-        const reason = toolError || 'The search returned no sources'
+      // Sources that share almost no words with the question are treated as a
+      // retrieval failure, since the verifier can still pass claims that are
+      // faithful to the wrong pages.
+      const offTopic =
+        !toolError &&
+        plan.tool === 'web_search' &&
+        toolResult.sources.length > 0 &&
+        relevanceOf(query, toolResult.sources) < OFF_TOPIC_BELOW
+      if (toolError || empty || (offTopic && canReplan())) {
+        const reason = toolError || (empty ? 'The search returned no sources' : 'The retrieved sources do not match the topic of the question')
         if (canReplan()) {
           await announceReplan(reason, [], toolResult?.sources || [])
           continue
