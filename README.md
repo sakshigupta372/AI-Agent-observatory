@@ -443,6 +443,6 @@ Built with:
 
 ---
 
-**Made with ❤️ for the AI observability community**
+**Made with ❤️ by Sakshi Gupta**
 
 *Watch your agents work, not just their results.*
