@@ -19,7 +19,12 @@ import CameraRig from './CameraRig.jsx'
 import SourceSatellites from './SourceSatellites.jsx'
 import QueryOrbits from './QueryOrbits.jsx'
 import Shockwave from './Shockwave.jsx'
+import TutorialOverlay from './TutorialOverlay.jsx'
+import QueryHistory from './QueryHistory.jsx'
+import ShareButton from './ShareButton.jsx'
+import { useKeyboardShortcuts, KeyboardShortcutsHelp } from '../hooks/useKeyboardShortcuts.jsx'
 import { useAgentExecution } from '../hooks/useAgentExecution.js'
+import { useQueryHistory } from '../hooks/useQueryHistory.js'
 import { playZone } from '../audio/zoneAudio.js'
 import {
   NODES,
@@ -78,11 +83,18 @@ export default function AgentScene() {
   const [scrub, setScrub] = useState(null)
   const [soundOn, setSoundOn] = useState(false)
   const [inspectOpen, setInspectOpen] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
+  const [prefill, setPrefill] = useState(null)
   const lastPacketKey = useRef(null)
   const replayLock = useRef(false)
   const controlsRef = useRef(null)
+  const queryInputRef = useRef(null)
+  const lastHistoryId = useRef(null)
 
   const exec = useAgentExecution()
+  const { history, addToHistory, clearHistory } = useQueryHistory()
   const frame = scrub != null ? exec.frames[scrub] : null
   const view = frame ? { ...exec, ...frame } : exec
   const displayed = hovered || selected
@@ -101,6 +113,17 @@ export default function AgentScene() {
   useEffect(() => {
     if (exec.memorySnapshot) setMemories(exec.memorySnapshot)
   }, [exec.memorySnapshot])
+
+  useEffect(() => {
+    const id = exec.runTrace?.id
+    if (exec.running || !id || id === lastHistoryId.current) return
+    lastHistoryId.current = id
+    addToHistory({
+      query: exec.query,
+      tool: exec.runTrace?.tool,
+      result: exec.response || exec.error || '',
+    })
+  }, [exec.running, exec.runTrace, exec.query, exec.response, exec.error, addToHistory])
 
   useEffect(() => {
     if (soundOn && focusId) playZone(focusId)
@@ -188,6 +211,44 @@ export default function AgentScene() {
     camera.position.copy(controls.target).add(offset)
     controls.update()
   }
+
+  const handleSelectQuery = (query) => {
+    setPrefill({ text: query, id: Date.now() })
+    queryInputRef.current?.focus()
+    setHistoryOpen(false)
+  }
+
+  const handleShare = () => {
+    if (!exec.runTrace?.id) return
+    setShareOpen(true)
+  }
+
+  const focusQueryInput = () => {
+    queryInputRef.current?.focus()
+  }
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    onRun: () => {
+      if (!exec.running && queryInputRef.current?.value) {
+        exec.run(queryInputRef.current.value, {})
+      }
+    },
+    onStop: () => {
+      // Esc closes whichever overlay is on top before it stops a run.
+      if (showHelp) return setShowHelp(false)
+      if (shareOpen) return setShareOpen(false)
+      if (historyOpen) return setHistoryOpen(false)
+      if (exec.running) exec.stop()
+    },
+    onReplay: replay,
+    onToggleHistory: () => setHistoryOpen(!historyOpen),
+    onShare: handleShare,
+    onExport: exportMission,
+    onShowHelp: () => setShowHelp(true),
+    onFocusInput: focusQueryInput,
+    enabled: !inspectOpen // Disable when inspector is open
+  })
 
   return (
     <div className={`canvas-wrap${exec.running ? ' cinematic' : ''}`}>
@@ -348,24 +409,10 @@ export default function AgentScene() {
         </div>
       )}
 
-      {exec.running && exec.streamText && (
-        <div className="stream-dock">
-          <span>LIVE REASONING</span>
-          <p>{exec.streamText}</p>
-        </div>
-      )}
+      {displayed && <InfoPanel node={displayed} />}
 
-      <InfoPanel node={displayed} />
-      <TracePanel trace={exec.trace} running={exec.running} canInspect={Boolean(exec.runTrace) && !exec.running} onInspect={() => setInspectOpen(true)} />
-      {inspectOpen && exec.runTrace && <SpanInspector trace={exec.runTrace} onClose={() => setInspectOpen(false)} />}
-      <MemoryStatsPanel stats={exec.memoryStats} />
-      <ResponsePanel
-        response={exec.running ? null : exec.response}
-        error={exec.running ? null : exec.error}
-        sources={exec.running ? [] : exec.sources}
-        asOf={exec.asOf}
-        verdicts={exec.verdicts}
-      />
+      {exec.memoryStats && <MemoryStatsPanel stats={exec.memoryStats} />}
+
       <RunConsole
         running={exec.running}
         label={exec.label}
@@ -376,9 +423,54 @@ export default function AgentScene() {
         onScrub={setScrub}
         onReplay={replay}
         soundOn={soundOn}
-        onToggleSound={() => setSoundOn((value) => !value)}
+        onToggleSound={() => setSoundOn(!soundOn)}
         onExport={exportMission}
         canExport={Boolean(exec.response || exec.error)}
+        inputRef={queryInputRef}
+        prefillQuery={prefill}
+      />
+
+      <ResponsePanel
+        response={exec.running ? null : exec.response}
+        error={exec.running ? null : exec.error}
+        sources={exec.running ? [] : exec.sources}
+        asOf={exec.asOf}
+        verdicts={exec.verdicts}
+      />
+
+      <TracePanel
+        trace={exec.trace}
+        running={exec.running}
+        canInspect={Boolean(exec.runTrace) && !exec.running}
+        onInspect={() => setInspectOpen(true)}
+      />
+
+      {inspectOpen && exec.runTrace && <SpanInspector trace={exec.runTrace} onClose={() => setInspectOpen(false)} />}
+
+      <TutorialOverlay />
+
+      <QueryHistory
+        history={history}
+        isOpen={historyOpen}
+        onToggle={() => setHistoryOpen(!historyOpen)}
+        onClear={clearHistory}
+        onSelectQuery={handleSelectQuery}
+        currentQuery={exec.query}
+      />
+
+      {exec.runTrace?.id && (
+        <ShareButton
+          traceId={exec.runTrace.id}
+          query={exec.query}
+          disabled={exec.running}
+          isOpen={shareOpen}
+          onOpenChange={setShareOpen}
+        />
+      )}
+
+      <KeyboardShortcutsHelp 
+        isOpen={showHelp}
+        onClose={() => setShowHelp(false)}
       />
     </div>
   )
