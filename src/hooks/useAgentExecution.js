@@ -42,51 +42,61 @@ const IDLE_STATE = {
   runTrace: null,
 }
 
-async function postJson(body) {
-  const res = await fetch('/api/agent', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  const data = await res.json().catch(() => null)
-  if (!res.ok || !data) return { error: data?.error || `Request failed (${res.status})`, ...data }
-  return data
+async function postJson(body, signal) {
+  try {
+    const res = await fetch('/api/agent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal,
+    })
+    const data = await res.json().catch(() => null)
+    if (!res.ok || !data) return { error: data?.error || `Request failed (${res.status})`, ...data }
+    return data
+  } catch (err) {
+    return { error: err.name === 'AbortError' ? 'Stopped by user' : err.message }
+  }
 }
 
-async function streamExecute(query, plan, onEvent, extra = {}) {
-  const res = await fetch('/api/agent', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phase: 'execute', query, plan, ...extra }),
-  })
-  if (!res.ok || !res.body) {
-    const data = await res.json().catch(() => null)
-    return { error: data?.error || `Request failed (${res.status})` }
-  }
+async function streamExecute(query, plan, onEvent, extra = {}, signal) {
+  try {
+    const res = await fetch('/api/agent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phase: 'execute', query, plan, ...extra }),
+      signal,
+    })
+    if (!res.ok || !res.body) {
+      const data = await res.json().catch(() => null)
+      return { error: data?.error || `Request failed (${res.status})` }
+    }
 
-  const reader = res.body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-  let donePayload = null
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-    const parts = buffer.split('\n\n')
-    buffer = parts.pop() || ''
-    for (const part of parts) {
-      const line = part.split('\n').find((item) => item.startsWith('data:'))
-      if (!line) continue
-      try {
-        const event = JSON.parse(line.slice(5).trim())
-        if (event.type === 'done') donePayload = event
-        else onEvent(event)
-      } catch {
-        // A split event is completed on the next chunk.
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let donePayload = null
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const parts = buffer.split('\n\n')
+      buffer = parts.pop() || ''
+      for (const part of parts) {
+        const line = part.split('\n').find((item) => item.startsWith('data:'))
+        if (!line) continue
+        try {
+          const event = JSON.parse(line.slice(5).trim())
+          if (event.type === 'done') donePayload = event
+          else onEvent(event)
+        } catch {
+          // A split event is completed on the next chunk.
+        }
       }
     }
+    return donePayload || { error: 'The agent stream ended before a result.' }
+  } catch (err) {
+    return { error: err.name === 'AbortError' ? 'Stopped by user' : err.message }
   }
-  return donePayload || { error: 'The agent stream ended before a result.' }
 }
 
 function latencyFor(step, live, routeMs, lastTraceTime) {
@@ -101,9 +111,23 @@ export function useAgentExecution() {
   const [state, setState] = useState(IDLE_STATE)
   const runId = useRef(0)
   const steerWait = useRef(null)
+  const abortRef = useRef(null)
 
   const steer = useCallback((tool) => {
     steerWait.current?.(tool)
+  }, [])
+
+  const stop = useCallback(() => {
+    runId.current += 1
+    abortRef.current?.abort()
+    steerWait.current?.(null)
+    setState((prev) => ({
+      ...prev,
+      running: false,
+      awaitingSteer: false,
+      label: 'Stopped',
+      error: prev.response ? prev.error : prev.error || 'Run stopped by user.',
+    }))
   }, [])
 
   const recall = useCallback((memory) => {
@@ -126,6 +150,8 @@ export function useAgentExecution() {
   const run = useCallback(async (query, options = {}) => {
     const id = ++runId.current
     const alive = () => runId.current === id
+    const controller = new AbortController()
+    abortRef.current = controller
     const frames = []
     const visited = []
     let ghostEdges = []
@@ -153,7 +179,7 @@ export function useAgentExecution() {
     }
 
     const routeStarted = performance.now()
-    const planResult = await postJson({ phase: 'route', query })
+    const planResult = await postJson({ phase: 'route', query }, controller.signal)
     const routeMs = Math.round(performance.now() - routeStarted)
     if (!alive()) return
 
@@ -310,7 +336,7 @@ export function useAgentExecution() {
               ],
             }))
           }
-        }, options.inject ? { inject: options.inject } : {})
+        }, options.inject ? { inject: options.inject } : {}, controller.signal)
         if (!alive()) return
         if (live?.confidence) {
           setState((prev) => ({ ...prev, confidence: live.confidence, sources: live.sources || prev.sources, runTrace: live.trace || null }))
@@ -418,5 +444,5 @@ export function useAgentExecution() {
     }))
   }, [])
 
-  return { ...state, run, steer, recall }
+  return { ...state, run, steer, recall, stop }
 }

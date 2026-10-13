@@ -29,6 +29,8 @@ export default function RunConsole({
   onToggleSound,
   onExport,
   canExport,
+  inputRef,
+  prefillQuery,
 }) {
   const [query, setQuery] = useState('')
   const [inject, setInject] = useState('')
@@ -37,6 +39,10 @@ export default function RunConsole({
   useEffect(() => {
     setScrub(Math.max(frames.length - 1, 0))
   }, [frames.length])
+
+  useEffect(() => {
+    if (prefillQuery) setQuery(prefillQuery.text)
+  }, [prefillQuery])
 
   const submit = (e) => {
     e.preventDefault()
@@ -84,6 +90,7 @@ export default function RunConsole({
 
       <form className="run-form" onSubmit={submit}>
         <input
+          ref={inputRef}
           type="text"
           placeholder="Ask the AI Agent something..."
           value={query}
