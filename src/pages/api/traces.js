@@ -2,10 +2,10 @@ import { getTrace, listTraces, traceAnalytics } from '../../server/traces.js'
 
 const headers = { 'Content-Type': 'application/json' }
 
-// GET /api/traces            -> recent runs
+// GET /api/traces            -> your recent runs plus evaluation runs
 // GET /api/traces?id=<uuid>  -> one run with every span
 // GET /api/traces?view=analytics -> aggregates across stored runs
-export async function GET({ url }) {
+export async function GET({ url, locals }) {
   try {
     const id = url.searchParams.get('id')
     if (id) {
@@ -16,7 +16,7 @@ export async function GET({ url }) {
     if (url.searchParams.get('view') === 'analytics') {
       return new Response(JSON.stringify({ analytics: await traceAnalytics() }), { headers })
     }
-    return new Response(JSON.stringify({ traces: await listTraces(60) }), { headers })
+    return new Response(JSON.stringify({ traces: await listTraces(60, locals?.visitorId || null) }), { headers })
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), { status: 500, headers })
   }

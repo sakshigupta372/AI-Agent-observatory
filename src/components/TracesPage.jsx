@@ -104,6 +104,10 @@ export default function TracesPage() {
       {error && <div className="card bad">Could not load traces: {error}</div>}
       <Analytics data={analytics} />
 
+      <p className="hint" style={{ margin: '0 0 12px', fontSize: 12, color: '#6f7da0' }}>
+        You see the runs made from this browser plus the evaluation suite's runs. Other visitors' questions are never listed.
+      </p>
+
       {traces && traces.length === 0 && (
         <div className="card empty">No traces stored yet. Run a query on the Observatory page and it will appear here.</div>
       )}
@@ -120,6 +124,7 @@ export default function TracesPage() {
                   <span>{formatMs(trace.totalMs)}</span>
                   {trace.replans > 0 && <span className="chip">{trace.replans} replan</span>}
                   {trace.injected && <span className="chip inject">{trace.injected}</span>}
+                  {trace.fromEval && <span className="chip">eval</span>}
                 </span>
               </button>
             ))}

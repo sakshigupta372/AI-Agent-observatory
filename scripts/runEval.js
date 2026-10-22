@@ -27,7 +27,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 async function post(body) {
   const res = await fetch(`${BASE}/api/agent`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', 'x-eval-key': process.env.EVAL_KEY || '' },
     body: JSON.stringify(body),
   })
   return res
@@ -63,6 +63,9 @@ async function main() {
   if (!(await ready())) {
     console.error('DATABASE_URL is not set or the database is unreachable. Run with: node --env-file=.env scripts/runEval.js')
     process.exit(1)
+  }
+  if (!process.env.EVAL_KEY) {
+    console.warn('EVAL_KEY is not set, so these runs will be saved as private and will not appear on /traces.')
   }
   const configs = EVAL_CONFIGS.filter((item) => !onlyConfig || item.id === onlyConfig)
   const tasks = EVAL_TASKS.filter((task) => !only || task.id.includes(only) || task.category.includes(only))

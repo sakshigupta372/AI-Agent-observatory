@@ -98,6 +98,10 @@ CREATE TABLE IF NOT EXISTS traces (
 
 CREATE INDEX IF NOT EXISTS traces_created_at_idx ON traces (created_at DESC);
 
+-- Who made the run: an anonymous visitor cookie, or 'eval' for suite runs.
+ALTER TABLE traces ADD COLUMN IF NOT EXISTS owner TEXT;
+CREATE INDEX IF NOT EXISTS traces_owner_idx ON traces (owner, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS trace_spans (
   id            BIGSERIAL PRIMARY KEY,
   trace_id      TEXT NOT NULL REFERENCES traces (id) ON DELETE CASCADE,
