@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { randomUUID, timingSafeEqual } from 'node:crypto'
 import { isConfigured, query } from './db.js'
 
 // Groq list price for openai/gpt-oss-120b, USD per 1M tokens. These are
@@ -6,6 +6,15 @@ import { isConfigured, query } from './db.js'
 export const PRICE_PER_M = { prompt: 0.15, completion: 0.75 }
 
 const MAX_FIELD = 2400
+
+// Suite runs are public only when the runner proves it holds EVAL_KEY;
+// otherwise anyone could publish arbitrary traces by claiming to be the suite.
+export function isEvalRequest(request) {
+  const expected = process.env.EVAL_KEY || import.meta.env?.EVAL_KEY || ''
+  const given = request.headers.get('x-eval-key') || ''
+  if (!expected || given.length !== expected.length) return false
+  return timingSafeEqual(Buffer.from(given), Buffer.from(expected))
+}
 
 export function estimateCost(promptTokens, completionTokens) {
   return (promptTokens * PRICE_PER_M.prompt + completionTokens * PRICE_PER_M.completion) / 1_000_000
@@ -100,14 +109,14 @@ export function createTracer({ query: text, config, injected }) {
 }
 
 // Persisting must never break a run, so every failure is swallowed and reported.
-export async function saveTrace(trace) {
+export async function saveTrace(trace, owner = null) {
   if (!isConfigured()) return { saved: false, reason: 'DATABASE_URL is not set' }
   try {
     await query(
       `INSERT INTO traces (id, created_at, query, tool, intent_label, routed_by, status, error, attempts, replans,
                            total_ms, prompt_tokens, completion_tokens, est_cost_usd, claims, claims_supported,
-                           injected, config, response)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+                           injected, config, response, owner)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
        ON CONFLICT (id) DO NOTHING`,
       [
         trace.id,
@@ -129,6 +138,7 @@ export async function saveTrace(trace) {
         trace.injected || null,
         JSON.stringify(trace.config || {}),
         trace.response ? String(trace.response).slice(0, 4000) : null,
+        owner,
       ]
     )
     for (const span of trace.spans) {
@@ -180,12 +190,17 @@ function rowToTrace(row) {
     injected: row.injected,
     config: row.config,
     response: row.response,
+    fromEval: row.owner === 'eval',
   }
 }
 
-export async function listTraces(limit = 40) {
+// Visitors only ever see their own runs plus the evaluation suite's runs.
+export async function listTraces(limit = 40, owner = null) {
   if (!isConfigured()) return []
-  const result = await query(`SELECT * FROM traces ORDER BY created_at DESC LIMIT $1`, [limit])
+  const result = await query(
+    `SELECT * FROM traces WHERE owner = 'eval' OR ($2::text IS NOT NULL AND owner = $2) ORDER BY created_at DESC LIMIT $1`,
+    [limit, owner]
+  )
   return result.rows.map(rowToTrace)
 }
 

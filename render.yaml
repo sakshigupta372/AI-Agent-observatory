@@ -20,3 +20,6 @@ services:
       # Neon connection string (the database that already holds the pgvector tables).
       - key: DATABASE_URL
         sync: false
+      # Marks eval-runner traces as public on /traces. Must match the key used locally.
+      - key: EVAL_KEY
+        sync: false

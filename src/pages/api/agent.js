@@ -1,6 +1,6 @@
 import { classify } from '../../data/scenarios.js'
 import { addMemory, listMemories, searchCustomers, searchMemories } from '../../server/memoryStore.js'
-import { addUsage, createTracer, saveTrace } from '../../server/traces.js'
+import { addUsage, createTracer, isEvalRequest, saveTrace } from '../../server/traces.js'
 
 const GROQ_API_KEY = import.meta.env.GROQ_API_KEY
 const TAVILY_API_KEY = import.meta.env.TAVILY_API_KEY
@@ -708,7 +708,7 @@ async function planRetry({ query, reason, unsupported, sources, meter }) {
 
 const supportRate = (verdicts) => (verdicts.length ? verdicts.filter((item) => item.supported).length / verdicts.length : 1)
 
-export async function POST({ request }) {
+export async function POST({ request, locals }) {
   let body
   try {
     body = await request.json()
@@ -728,6 +728,7 @@ export async function POST({ request }) {
   const plan = sanitizePlan(body?.plan, query)
   if (isFreshQuery(query) && !plan.steered) plan.tool = 'web_search'
   const config = normalizeConfig(body?.config)
+  const owner = isEvalRequest(request) ? 'eval' : locals?.visitorId || null
   const inject = INJECTIONS.has(body?.inject) && plan.tool === 'web_search' ? body.inject : null
 
   return sse(async (send) => {
@@ -748,7 +749,7 @@ export async function POST({ request }) {
         claimsSupported: verdicts.filter((item) => item.supported).length,
         response,
       })
-      const saved = await saveTrace(trace)
+      const saved = await saveTrace(trace, owner)
       send({
         type: 'done',
         response,
