@@ -1,0 +1,3249 @@
+{
+  "meta": {
+    "startedAt": "2026-10-24T06:48:02.417Z",
+    "finishedAt": "2026-10-24T06:54:14.066Z",
+    "baseUrl": "http://localhost:4331",
+    "queryFile": "benchmarks/queries.json",
+    "queryFileVersion": 1,
+    "gitCommit": "db81655 (uncommitted changes present)",
+    "model": "openai/gpt-oss-120b",
+    "node": "v22.18.0",
+    "config": {
+      "verify": true,
+      "replan": true,
+      "maxRetries": 1,
+      "remember": false
+    },
+    "pauseMs": 2000,
+    "timeoutMs": 120000,
+    "warmupRuns": 1,
+    "warmups": [
+      {
+        "status": "ok",
+        "clientTotalMs": 2284.8,
+        "memoryMs": 675
+      }
+    ],
+    "percentileMethod": "nearest-rank",
+    "definitions": [
+      "End-to-end latency: client wall clock from sending the route request to receiving the `done` SSE event (performance.now in this script). Includes network to the server.",
+      "route_intent_planning_tool_selection: server time of the route request (Server-Timing header). Intent detection, planning (task list) and tool selection are produced by one Groq JSON call, so they cannot be timed separately. For questions matching the \"fresh\" keywords, or when the model call fails, keyword rules are used instead and this is near 0 ms (see routed_by).",
+      "plan_bookkeeping: the `plan` span inside execute only records the plan from the route step; it is not planning work and is not ranked.",
+      "memory_retrieval: embedding the question with the local MiniLM model plus the pgvector similarity query. The store swallows database errors and falls back to a lexical file search, which this benchmark cannot distinguish.",
+      "tool_execution: the tool span, summed across attempts. For web search it includes every Tavily request the tool made and the page fetches used to recover publication dates.",
+      "reasoning: the answer-writing step, summed across attempts. reasoning_time_to_first_content is from starting the Groq stream request to the first answer token (includes queueing, retries and the model's hidden reasoning); reasoning_content_stream is from the first to the last answer token, i.e. response generation. Calculator answers and database \"no match\" answers are written without a model call (reasoning_used_model = false).",
+      "verification: the verifier span, summed across attempts. It splits the answer into claims by taking lines that start with \"- \", then asks Groq to mark each one supported or not against the retrieved sources. If Groq fails it falls back to a word-overlap check (verifier = local).",
+      "Verifier labels are binary. supported = the verifier judged the claim to be present in the retrieved sources. unsupported = it was not found in those sources; this does not mean the claim is false. There is no uncertain/unverifiable label and no per-claim confidence. heuristicConfidence in the JSON is the app's display score, computed from routing method, source count and support rate; it is not a verifier output.",
+      "Runs whose tool returns no sources (calculator, database, text analysis, empty search) are verified by the local check, which marks every claim supported without comparing it to anything. They are reported separately and should not be read as evidence of correctness.",
+      "replan: the planner call that writes a new search query after a failed verification or empty search, summed across attempts.",
+      "unattributed_server: server execute total (tracer start to trace summary) minus the sum of all spans. Covers work between spans, such as SSE writes, and after the last span (overhead_post_span_server: the optional memory write and listing memories). Only computed when spans do not overlap.",
+      "overhead_execute_outside_tracer: client execute time minus server execute total. Covers request transit and body parsing before the tracer starts, saving the trace to Postgres, and delivering the done event. It is a difference of two durations measured by different clocks, not a separate timer.",
+      "overhead_route_outside_server: route round trip minus route server time, i.e. network and request handling outside the route handler.",
+      "Accounting: client total = route round trip + execute client time (plus the few microseconds between them). Route round trip = route server time + route overhead. Execute client time = server execute total + execute overhead outside the tracer.",
+      "Status: ok = answer with no error; degraded = an answer was produced but the agent reported an error (for example the model was unavailable and a fallback answer was used); failed = no answer; http_error, network_error, timeout, incomplete = the request did not complete normally.",
+      "Results vary between runs: the reasoning model runs at temperature 0.2 and web results change. Re-run to see the spread."
+    ]
+  },
+  "runs": [
+    {
+      "id": "fact-01",
+      "category": "factual",
+      "query": "What is pgvector and what is it used for?",
+      "status": "ok",
+      "error": null,
+      "failedStage": null,
+      "routedBy": "model",
+      "intentLabel": "definition_query",
+      "tool": "web_search",
+      "timings": {
+        "clientTotalMs": 8353.8,
+        "routeClientMs": 1153.5,
+        "routeServerMs": 1145,
+        "executeClientMs": 7200.3,
+        "executeFirstEventMs": 2597.9,
+        "executeFirstTokenMs": 3680.3,
+        "routeOverheadMs": 8.5,
+        "executeOutsideTracerMs": 543.3,
+        "postSpanServerMs": 249,
+        "serverExecuteMs": 6657,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 99,
+          "tool_execution": 2490,
+          "reasoning": 1579,
+          "reasoning_time_to_first_content": 1085,
+          "reasoning_content_stream": 494,
+          "verification": 2239,
+          "replan": null
+        },
+        "spanSumMs": 6407,
+        "unattributedServerMs": 250,
+        "overlaps": []
+      },
+      "attempts": 1,
+      "replans": 0,
+      "reasoningUsedModel": true,
+      "spanErrors": [],
+      "verification": {
+        "ran": true,
+        "verifier": "model",
+        "fallbackNote": null,
+        "claimsChecked": 5,
+        "supported": 5,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": true,
+        "sourceCount": 6,
+        "sources": [
+          {
+            "title": "Pgvector - Learn AI",
+            "url": "https://ai.miraheze.org/wiki/Pgvector",
+            "publishedDate": "2021-04-19"
+          },
+          {
+            "title": "How to Use pgvector to Search Documents by Meaning in PostgreSQL",
+            "url": "https://www.c-sharpcorner.com/article/how-to-use-pgvector-to-search-documents-by-meaning-in-postgresql",
+            "publishedDate": "2026-10-23"
+          },
+          {
+            "title": "EDB Docs - pgvector",
+            "url": "https://www.enterprisedb.com/docs/pg_extensions/pgvector",
+            "publishedDate": null
+          },
+          {
+            "title": "What Is a Vector Database? How It Powers Modern AI Applications",
+            "url": "https://www.trantorinc.com/insights/what-is-a-vector-database",
+            "publishedDate": null
+          },
+          {
+            "title": "pgvector download | SourceForge.net",
+            "url": "https://sourceforge.net/projects/pgvector.mirror",
+            "publishedDate": "2026-10-01"
+          },
+          {
+            "title": "pgvector vs. Dedicated Vector Databases: A Production Benchmark - MachineLearningMastery.com",
+            "url": "https://machinelearningmastery.com/pgvector-vs-dedicated-vector-databases-a-production-benchmark",
+            "publishedDate": "2026-10-20"
+          }
+        ],
+        "verdicts": [
+          {
+            "text": "It introduces a `vector` column type for storing embeddings directly in PostgreSQL tables, keeping full ACID guarantees 【2021-04-19】 (source older than today).",
+            "supported": true,
+            "note": "Source 1 states pgvector adds a vector type and maintains full ACID compliance."
+          },
+          {
+            "text": "The extension provides exact and approximate nearest‑neighbor search (e.g., HNSW indexing added in 2023) for fast semantic similarity queries 【2026-10-23】.",
+            "supported": true,
+            "note": "Sources 4 and 5 describe exact/approximate NN search and HNSW added in 2023."
+          },
+          {
+            "text": "Common applications include semantic search, retrieval‑augmented generation (RAG), recommendation systems, and other AI/ML workloads that rely on embedding similarity 【2026-10-20】.",
+            "supported": true,
+            "note": "Source 3 lists semantic search, RAG and AI/ML use cases."
+          },
+          {
+            "text": "It allows vectors to live alongside traditional relational data, eliminating the need for a separate vector‑database service 【date not provided – EDB Docs].",
+            "supported": true,
+            "note": "Sources 3 and 4 note vectors can coexist with relational data, removing a separate service."
+          },
+          {
+            "text": "Approximate indexes such as HNSW trade some recall for speed, offering performance comparable to dedicated vector databases up to ~10 million vectors 【2026-10-01】.",
+            "supported": true,
+            "note": "Source 4 mentions HNSW matches recall/latency up to ~10 M vectors; source 5 notes recall‑speed tradeoff."
+          }
+        ],
+        "heuristicConfidence": {
+          "intent": 88,
+          "tool": 96,
+          "answer": 100,
+          "verifier": 100
+        }
+      },
+      "traceId": "ec5c910a-e254-449d-9c83-b7a00670db38",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 1024,
+      "response": "**pgvector is an open‑source PostgreSQL extension that adds native vector columns, distance operators, and indexing methods to enable similarity‑search on high‑dimensional embeddings.**  \n\n- It introduces a `vector` column type for storing embeddings directly in PostgreSQL tables, keeping full ACID guarantees 【2021-04-19】 (source older than today).  \n- The extension provides exact and approximate nearest‑neighbor search (e.g., HNSW indexing added in 2023) for fast semantic similarity queries 【2026-10-23】.  \n- Common applications include semantic search, retrieval‑augmented generation (RAG), recommendation systems, and other AI/ML workloads that rely on embedding similarity 【2026-10-20】.  \n- It allows vectors to live alongside traditional relational data, eliminating the need for a separate vector‑database service 【date not provided – EDB Docs].  \n- Approximate indexes such as HNSW trade some recall for speed, offering performance comparable to dedicated vector databases up to ~10 million vectors 【2026-10-01】."
+    },
+    {
+      "id": "fact-02",
+      "category": "factual",
+      "query": "Who created the Linux kernel?",
+      "status": "ok",
+      "error": null,
+      "failedStage": null,
+      "routedBy": "model",
+      "intentLabel": "information_query",
+      "tool": "web_search",
+      "timings": {
+        "clientTotalMs": 10522,
+        "routeClientMs": 922.3,
+        "routeServerMs": 915.7,
+        "executeClientMs": 9599.7,
+        "executeFirstEventMs": 5182.2,
+        "executeFirstTokenMs": 6569.3,
+        "routeOverheadMs": 6.6,
+        "executeOutsideTracerMs": 587.7,
+        "postSpanServerMs": 258,
+        "serverExecuteMs": 9012,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 100,
+          "tool_execution": 5076,
+          "reasoning": 1669,
+          "reasoning_time_to_first_content": 1389,
+          "reasoning_content_stream": 280,
+          "verification": 1908,
+          "replan": null
+        },
+        "spanSumMs": 8753,
+        "unattributedServerMs": 259,
+        "overlaps": []
+      },
+      "attempts": 1,
+      "replans": 0,
+      "reasoningUsedModel": true,
+      "spanErrors": [],
+      "verification": {
+        "ran": true,
+        "verifier": "model",
+        "fallbackNote": null,
+        "claimsChecked": 3,
+        "supported": 3,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": true,
+        "sourceCount": 6,
+        "sources": [
+          {
+            "title": "What Is Linux? | A Simple Guide for Beginners - Linuxabc",
+            "url": "https://www.linuxabc.si/en/linux.html",
+            "publishedDate": null
+          },
+          {
+            "title": "Linux Kernel download | SourceForge.net",
+            "url": "https://sourceforge.net/projects/linux.mirror",
+            "publishedDate": "2026-10-18"
+          },
+          {
+            "title": "Who Owns Linux? Kernel Copyright and Trademark · SSD Nodes",
+            "url": "https://www.ssdnodes.com/learn/who-owns-linux",
+            "publishedDate": "2026-10-21"
+          },
+          {
+            "title": "Linux creator Linus Torvalds is increasingly using AI to ...",
+            "url": "https://www.facebook.com/itsfoss/posts/linux-creator-linus-torvalds-is-increasingly-using-ai-to-work-on-the-linux-kerne/1400250228882693",
+            "publishedDate": null
+          },
+          {
+            "title": "Linus Torvalds Credits AI in Linux Kernel Cover Letter",
+            "url": "https://www.linkedin.com/posts/planetoftheweb_linus-torvalds-creator-of-linux-just-credited-activity-7516830499156365312-FLSh",
+            "publishedDate": "2026-10-16"
+          },
+          {
+            "title": "Linus Torvalds has started using AI to develop the Linux kernel – Computerworld",
+            "url": "https://www.computerworld.com/article/4235401/linus-torvalds-has-started-using-ai-to-develop-the-linux-kernel.html",
+            "publishedDate": "2026-10-13"
+          }
+        ],
+        "verdicts": [
+          {
+            "text": "Linux was first created by Linus Torvalds in 1991",
+            "supported": true,
+            "note": "Source 1 states it was first created by Linus Torvalds in 1991"
+          },
+          {
+            "text": "The Linux kernel was initiated by Linus Torvalds in 1991",
+            "supported": true,
+            "note": "Source 2 says the kernel was initiated by Linus Torvalds in 1991"
+          },
+          {
+            "text": "Linus Torvalds announced in August 1991 that he was developing the Linux kernel, confirming he is its creator",
+            "supported": true,
+            "note": "Source 3 notes Linus announced in August 1991 he was developing the kernel"
+          }
+        ],
+        "heuristicConfidence": {
+          "intent": 88,
+          "tool": 96,
+          "answer": 100,
+          "verifier": 100
+        }
+      },
+      "traceId": "52144b9a-3df5-467b-9819-ed8429dfb0ed",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 422,
+      "response": "**Linus Torvalds created the Linux kernel in 1991.**  \n\n- Linux was first created by Linus Torvalds in 1991 【Source 1: no date, undated】.  \n- The Linux kernel was initiated by Linus Torvalds in 1991 (source dated 2026‑10‑18, older than today)【Source 2】.  \n- Linus Torvalds announced in August 1991 that he was developing the Linux kernel, confirming he is its creator (source dated 2026‑10‑21, older than today)【Source 3】."
+    },
+    {
+      "id": "fact-03",
+      "category": "factual",
+      "query": "What is the difference between TCP and UDP?",
+      "status": "degraded",
+      "error": "The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged. This summary is built only from the source titles and dates.",
+      "failedStage": null,
+      "routedBy": "model",
+      "intentLabel": "explain_tcp_udp",
+      "tool": "web_search",
+      "timings": {
+        "clientTotalMs": 25425,
+        "routeClientMs": 1641.7,
+        "routeServerMs": 1636.6,
+        "executeClientMs": 23783.2,
+        "executeFirstEventMs": 8289.8,
+        "executeFirstTokenMs": 9249.4,
+        "routeOverheadMs": 5.1,
+        "executeOutsideTracerMs": 892.2,
+        "postSpanServerMs": 828,
+        "serverExecuteMs": 22891,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 101,
+          "tool_execution": 12053,
+          "reasoning": 3351,
+          "reasoning_time_to_first_content": 962,
+          "reasoning_content_stream": 368,
+          "verification": 4577,
+          "replan": 1981
+        },
+        "spanSumMs": 22063,
+        "unattributedServerMs": 828,
+        "overlaps": []
+      },
+      "attempts": 2,
+      "replans": 1,
+      "reasoningUsedModel": true,
+      "spanErrors": [
+        "reasoning#2: The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged."
+      ],
+      "verification": {
+        "ran": true,
+        "verifier": "local",
+        "fallbackNote": "Model verification failed (The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged.), used word-overlap check",
+        "claimsChecked": 4,
+        "supported": 4,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": true,
+        "sourceCount": 6,
+        "sources": [
+          {
+            "title": "TCP vs UDP: Key Differences, Speed, Reliability, and Real-World Uses",
+            "url": "https://www.ariat-tech.com/blog/TCP-vs-UDP-Key-Differences,Speed,Reliability,and-Real-World-Uses.html",
+            "publishedDate": null
+          },
+          {
+            "title": "TCP vs UDP: The Difference for Troubleshooting",
+            "url": "https://www.flamingo.run/blog/tcp-vs-udp",
+            "publishedDate": "2026-10-06"
+          },
+          {
+            "title": "TCP vs. UDP Protocol Guide: Key Differences, Use Cases & Selection Guide",
+            "url": "https://medium.com/h7w/tcp-vs-udp-protocol-guide-key-differences-use-cases-selection-guide-022f84e944b5",
+            "publishedDate": null
+          },
+          {
+            "title": "TCP vs UDP Explained: Fast vs Reliable (Plus QUIC & HTTP/3)",
+            "url": "https://www.youtube.com/watch?v=rA4NOeYCr4w",
+            "publishedDate": null
+          },
+          {
+            "title": "TCP vs UDP: Key Differences and Use Cases",
+            "url": "https://www.facebook.com/groups/438427519669413/posts/3432166026962199",
+            "publishedDate": null
+          },
+          {
+            "title": "TCP vs. UDP: Key differences for CCNA preparation",
+            "url": "https://www.facebook.com/groups/837002593835586/posts/2138047803731052",
+            "publishedDate": null
+          }
+        ],
+        "verdicts": [
+          {
+            "text": "TCP vs UDP: Key Differences, Speed, Reliability, and Real-World Uses (no date on the source page)",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "TCP vs UDP: The Difference for Troubleshooting (2026-10-06)",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "TCP vs. UDP Protocol Guide: Key Differences, Use Cases & Selection Guide (no date on the source page)",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "TCP vs UDP Explained: Fast vs Reliable (Plus QUIC & HTTP/3) (no date on the source page)",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          }
+        ],
+        "heuristicConfidence": {
+          "intent": 88,
+          "tool": 96,
+          "answer": 100,
+          "verifier": 100
+        }
+      },
+      "traceId": "7ffe1850-813e-4462-a1d4-857e0ce48822",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 380,
+      "response": "Newest matching sources\n- TCP vs UDP: Key Differences, Speed, Reliability, and Real-World Uses (no date on the source page)\n- TCP vs UDP: The Difference for Troubleshooting (2026-10-06)\n- TCP vs. UDP Protocol Guide: Key Differences, Use Cases & Selection Guide (no date on the source page)\n- TCP vs UDP Explained: Fast vs Reliable (Plus QUIC & HTTP/3) (no date on the source page)"
+    },
+    {
+      "id": "fact-04",
+      "category": "factual",
+      "query": "What does HNSW stand for in vector search?",
+      "status": "ok",
+      "error": null,
+      "failedStage": null,
+      "routedBy": "model",
+      "intentLabel": "definition",
+      "tool": "web_search",
+      "timings": {
+        "clientTotalMs": 11126.2,
+        "routeClientMs": 1150.2,
+        "routeServerMs": 1142.9,
+        "executeClientMs": 9976,
+        "executeFirstEventMs": 5114.5,
+        "executeFirstTokenMs": 6716,
+        "routeOverheadMs": 7.3,
+        "executeOutsideTracerMs": 534,
+        "postSpanServerMs": 245,
+        "serverExecuteMs": 9442,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 90,
+          "tool_execution": 5015,
+          "reasoning": 2020,
+          "reasoning_time_to_first_content": 1604,
+          "reasoning_content_stream": 415,
+          "verification": 2072,
+          "replan": null
+        },
+        "spanSumMs": 9197,
+        "unattributedServerMs": 245,
+        "overlaps": []
+      },
+      "attempts": 1,
+      "replans": 0,
+      "reasoningUsedModel": true,
+      "spanErrors": [],
+      "verification": {
+        "ran": true,
+        "verifier": "local",
+        "fallbackNote": "Model verification failed (The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged.), used word-overlap check",
+        "claimsChecked": 5,
+        "supported": 5,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": true,
+        "sourceCount": 6,
+        "sources": [
+          {
+            "title": "What Is a Vector Database? How It Powers Modern AI Applications",
+            "url": "https://www.trantorinc.com/insights/what-is-a-vector-database",
+            "publishedDate": null
+          },
+          {
+            "title": "Cuong Nguyen's Post",
+            "url": "https://www.linkedin.com/posts/cuong-nguyen-2b7352140_i-started-looking-into-hnsw-because-of-a-activity-7513816757736972288-k_wk",
+            "publishedDate": "2026-10-08"
+          },
+          {
+            "title": "Poisoning the Neighborhood: A Topology-Aware Topic-Level Attack on Large-Scale HNSW-based RAG Systems",
+            "url": "https://arxiv.org/html/2610.21464v1",
+            "publishedDate": null
+          },
+          {
+            "title": "Not all vector search methods work the same way. In this ...",
+            "url": "https://www.instagram.com/reel/DeovlJ-CPad",
+            "publishedDate": null
+          },
+          {
+            "title": "VECTOR DATABASES AND EMBEDDING SEARCH",
+            "url": "https://rjwave.org/ijedr/papers/IJEDR2603519.pdf",
+            "publishedDate": null
+          },
+          {
+            "title": "RAG and Retrieval | GenAI System Design Interviews | AlgoMaster.io",
+            "url": "https://algomaster.io/learn/genai-system-design-interviews/rag-and-retrieval",
+            "publishedDate": "2026-10-18"
+          }
+        ],
+        "verdicts": [
+          {
+            "text": "HNSW is a graph‑based approximate nearest‑neighbor (ANN) index that enables fast, scalable vector search. (source page does not publish a date)",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "It constructs a multi‑layer proximity graph where each vector is linked to nearby neighbors, allowing efficient navigation toward the query vector. (source page does not publish a date)",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "This hierarchical graph design is widely adopted in production vector databases to achieve low‑latency search with high recall. (source page does not publish a date)",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "A LinkedIn post dated 2026‑10‑08 confirms the acronym expansion to “Hierarchical Navigable Small World” (source older than today).",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "The Algomaster.io article dated 2026‑10‑18 describes HNSW’s multi‑layer graph structure and its search process (source older than today).",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          }
+        ],
+        "heuristicConfidence": {
+          "intent": 88,
+          "tool": 96,
+          "answer": 100,
+          "verifier": 100
+        }
+      },
+      "traceId": "4a7afacf-eb6d-48af-b467-e2ff3fd0791d",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 858,
+      "response": "**HNSW stands for Hierarchical Navigable Small World in vector search.**  \n\n- HNSW is a graph‑based approximate nearest‑neighbor (ANN) index that enables fast, scalable vector search. (source page does not publish a date)  \n- It constructs a multi‑layer proximity graph where each vector is linked to nearby neighbors, allowing efficient navigation toward the query vector. (source page does not publish a date)  \n- This hierarchical graph design is widely adopted in production vector databases to achieve low‑latency search with high recall. (source page does not publish a date)  \n- A LinkedIn post dated 2026‑10‑08 confirms the acronym expansion to “Hierarchical Navigable Small World” (source older than today).  \n- The Algomaster.io article dated 2026‑10‑18 describes HNSW’s multi‑layer graph structure and its search process (source older than today)."
+    },
+    {
+      "id": "fact-05",
+      "category": "factual",
+      "query": "What is the boiling point of water at sea level in Fahrenheit?",
+      "status": "degraded",
+      "error": "The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged. This summary is built only from the source titles and dates.",
+      "failedStage": null,
+      "routedBy": "model",
+      "intentLabel": "information_query",
+      "tool": "web_search",
+      "timings": {
+        "clientTotalMs": 11480.9,
+        "routeClientMs": 1000.5,
+        "routeServerMs": 993.9,
+        "executeClientMs": 10480.4,
+        "executeFirstEventMs": 5192.6,
+        "executeFirstTokenMs": 7251.5,
+        "routeOverheadMs": 6.6,
+        "executeOutsideTracerMs": 515.4,
+        "postSpanServerMs": 246,
+        "serverExecuteMs": 9965,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 100,
+          "tool_execution": 5087,
+          "reasoning": 2059,
+          "reasoning_time_to_first_content": null,
+          "reasoning_content_stream": null,
+          "verification": 2473,
+          "replan": null
+        },
+        "spanSumMs": 9719,
+        "unattributedServerMs": 246,
+        "overlaps": []
+      },
+      "attempts": 1,
+      "replans": 0,
+      "reasoningUsedModel": false,
+      "spanErrors": [
+        "reasoning#1: The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged."
+      ],
+      "verification": {
+        "ran": true,
+        "verifier": "model",
+        "fallbackNote": null,
+        "claimsChecked": 4,
+        "supported": 4,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": true,
+        "sourceCount": 6,
+        "sources": [
+          {
+            "title": "What is the boiling point of water at sea level?",
+            "url": "https://www.facebook.com/groups/160552443571181/posts/1097756999850716",
+            "publishedDate": null
+          },
+          {
+            "title": "What temperature does water boil at sea level?",
+            "url": "https://www.facebook.com/groups/376100836095453/posts/2900516803653831",
+            "publishedDate": null
+          },
+          {
+            "title": "At sea level, water boils at what temperature? #LPT2027",
+            "url": "https://www.facebook.com/LetReview2023BSEdBEEd/posts/at-sea-level-water-boils-at-what-temperaturelpt2027/1628987342357902",
+            "publishedDate": null
+          },
+          {
+            "title": "Boiling Point of Water: 100°C / 212°F at Sea Level (+ Altitude Table)",
+            "url": "https://easytemperature.com/conversions/boiling-point-water",
+            "publishedDate": "2026-05-01"
+          },
+          {
+            "title": "The boiling point of water depends on the atmospheric ...",
+            "url": "https://www.facebook.com/royalinstitution/posts/the-boiling-point-of-water-depends-on-the-atmospheric-pressure-above-it-%EF%B8%8Fanu-ojh/1561778482653800",
+            "publishedDate": null
+          },
+          {
+            "title": "What is the boiling point of water in Celsius and Fahrenheit? [Solved]",
+            "url": "https://brighterly.com/questions/what-is-the-boiling-point-of-water-in-celsius-and-fahrenheit",
+            "publishedDate": "2025-08-12"
+          }
+        ],
+        "verdicts": [
+          {
+            "text": "What is the boiling point of water at sea level? (no date on the source page)",
+            "supported": true,
+            "note": "Source 1 states water boils at 100 °C/212 °F at sea level."
+          },
+          {
+            "text": "What temperature does water boil at sea level? (no date on the source page)",
+            "supported": true,
+            "note": "Source 2 confirms water boils at 100 °C (212 °F) at sea level."
+          },
+          {
+            "text": "At sea level, water boils at what temperature? #LPT2027 (no date on the source page)",
+            "supported": true,
+            "note": "Source 3 reports water boils at 100 °C (212 °F) at sea level."
+          },
+          {
+            "text": "Boiling Point of Water: 100°C / 212°F at Sea Level (+ Altitude Table) (2026-05-01)",
+            "supported": true,
+            "note": "Source 4 (dated 2026-05-01) states water boils at 100 °C/212 °F at sea level."
+          }
+        ],
+        "heuristicConfidence": {
+          "intent": 88,
+          "tool": 96,
+          "answer": 100,
+          "verifier": 100
+        }
+      },
+      "traceId": "64efebb3-459a-46ea-b883-de2772820c6a",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 353,
+      "response": "Newest matching sources\n- What is the boiling point of water at sea level? (no date on the source page)\n- What temperature does water boil at sea level? (no date on the source page)\n- At sea level, water boils at what temperature? #LPT2027 (no date on the source page)\n- Boiling Point of Water: 100°C / 212°F at Sea Level (+ Altitude Table) (2026-05-01)"
+    },
+    {
+      "id": "fact-06",
+      "category": "factual",
+      "query": "What is retrieval augmented generation?",
+      "status": "ok",
+      "error": null,
+      "failedStage": null,
+      "routedBy": "keywords",
+      "intentLabel": "General Query",
+      "tool": "web_search",
+      "timings": {
+        "clientTotalMs": 13682.8,
+        "routeClientMs": 2018,
+        "routeServerMs": 2012.3,
+        "executeClientMs": 11664.7,
+        "executeFirstEventMs": 5754.5,
+        "executeFirstTokenMs": 8264.3,
+        "routeOverheadMs": 5.7,
+        "executeOutsideTracerMs": 551.7,
+        "postSpanServerMs": 235,
+        "serverExecuteMs": 11113,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 94,
+          "tool_execution": 5653,
+          "reasoning": 3081,
+          "reasoning_time_to_first_content": 2511,
+          "reasoning_content_stream": 570,
+          "verification": 2049,
+          "replan": null
+        },
+        "spanSumMs": 10877,
+        "unattributedServerMs": 236,
+        "overlaps": []
+      },
+      "attempts": 1,
+      "replans": 0,
+      "reasoningUsedModel": true,
+      "spanErrors": [],
+      "verification": {
+        "ran": true,
+        "verifier": "local",
+        "fallbackNote": "Model verification failed (The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged.), used word-overlap check",
+        "claimsChecked": 5,
+        "supported": 5,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": true,
+        "sourceCount": 6,
+        "sources": [
+          {
+            "title": "RAG (Retrieval-Augmented Generation) - Northwestern AI in Education - Library at Connecticut State Community College",
+            "url": "https://library.ctstate.edu/c.php?g=1451539&p=11040821",
+            "publishedDate": null
+          },
+          {
+            "title": "Retrieval-Augmented Generation (RAG) with AWS",
+            "url": "https://builder.aws.com/content/3KBq3OMy8btST4YDoikeOQrtyt4/retrieval-augmented-generation-rag-with-aws-building-smarter-ai-applications",
+            "publishedDate": "2026-10-03"
+          },
+          {
+            "title": "Retrieval-Augmented Generation (RAG): Complete AI Guide",
+            "url": "https://almcorp.com/retrieval-augmented-generation-rag-complete-guide",
+            "publishedDate": null
+          },
+          {
+            "title": "What Is RAG (retrieval-augmented generation)? A Marketer's Guide | Similarweb",
+            "url": "https://aisearch.similarweb.com/blog/rag",
+            "publishedDate": "2026-10-01"
+          },
+          {
+            "title": "What is Retrieval-Augmented Generation (RAG)? | H2O.ai",
+            "url": "https://h2o.ai/wiki/retrieval-augmented-generation",
+            "publishedDate": null
+          },
+          {
+            "title": "What Is RAG (Retrieval Augmented Generation)? | Elium",
+            "url": "https://elium.com/blog/what-is-rag-retrieval-augmented-generation",
+            "publishedDate": "2025-10-10"
+          }
+        ],
+        "verdicts": [
+          {
+            "text": "RAG improves a model’s answer by first fetching relevant documents from an external knowledge source and then feeding those passages into the prompt, rather than relying solely on the model’s memorized parameters (source 1, no published date – older than today).",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "The technique was introduced in a 2020 Facebook AI Research paper (Lewis et al.) that combined neural generation with classic information‑retrieval methods (source 5, no published date – older than today).",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "AWS describes RAG as a method that connects large language models to external knowledge sources, enhancing accuracy and freshness of the output (source 2, 2026‑10‑03 – older than today).",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "Similarweb explains that RAG lets an AI model search an external index for relevant passages before writing its answer, overcoming the static knowledge cutoff of standalone models (source 4, 2026‑10‑01 – older than today).",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "Elium notes that RAG dynamically fetches information from structured repositories at inference time, creating a hybrid architecture that blends parametric knowledge with retrieved facts (source 6, 2025‑10‑10 – older than today).",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          }
+        ],
+        "heuristicConfidence": {
+          "intent": 62,
+          "tool": 96,
+          "answer": 100,
+          "verifier": 100
+        }
+      },
+      "traceId": "64e5bb76-9dbe-47a2-84d7-a685ee73416d",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 1312,
+      "response": "**Retrieval‑Augmented Generation (RAG) is an AI architecture that pairs external information retrieval with language‑model generation to produce more accurate, up‑to‑date responses.**  \n\n- RAG improves a model’s answer by first fetching relevant documents from an external knowledge source and then feeding those passages into the prompt, rather than relying solely on the model’s memorized parameters (source 1, no published date – older than today).  \n- The technique was introduced in a 2020 Facebook AI Research paper (Lewis et al.) that combined neural generation with classic information‑retrieval methods (source 5, no published date – older than today).  \n- AWS describes RAG as a method that connects large language models to external knowledge sources, enhancing accuracy and freshness of the output (source 2, 2026‑10‑03 – older than today).  \n- Similarweb explains that RAG lets an AI model search an external index for relevant passages before writing its answer, overcoming the static knowledge cutoff of standalone models (source 4, 2026‑10‑01 – older than today).  \n- Elium notes that RAG dynamically fetches information from structured repositories at inference time, creating a hybrid architecture that blends parametric knowledge with retrieved facts (source 6, 2025‑10‑10 – older than today)."
+    },
+    {
+      "id": "curr-01",
+      "category": "current",
+      "query": "What is the latest AI news today?",
+      "status": "degraded",
+      "error": "The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged. This summary is built only from the source titles and dates.",
+      "failedStage": null,
+      "routedBy": "keywords",
+      "intentLabel": "Web Search",
+      "tool": "web_search",
+      "timings": {
+        "clientTotalMs": 13607.4,
+        "routeClientMs": 4.8,
+        "routeServerMs": 0.1,
+        "executeClientMs": 13602.5,
+        "executeFirstEventMs": 4980.5,
+        "executeFirstTokenMs": 11285.9,
+        "routeOverheadMs": 4.7,
+        "executeOutsideTracerMs": 702.5,
+        "postSpanServerMs": 234,
+        "serverExecuteMs": 12900,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 109,
+          "tool_execution": 7025,
+          "reasoning": 2095,
+          "reasoning_time_to_first_content": null,
+          "reasoning_content_stream": null,
+          "verification": 1386,
+          "replan": 2051
+        },
+        "spanSumMs": 12666,
+        "unattributedServerMs": 234,
+        "overlaps": []
+      },
+      "attempts": 2,
+      "replans": 1,
+      "reasoningUsedModel": false,
+      "spanErrors": [
+        "reasoning#2: The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged."
+      ],
+      "verification": {
+        "ran": true,
+        "verifier": "model",
+        "fallbackNote": null,
+        "claimsChecked": 4,
+        "supported": 4,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": true,
+        "sourceCount": 6,
+        "sources": [
+          {
+            "title": "AI NEWS: Week of October 19 to 26, 2026",
+            "url": "https://medium.com/@davidakpovi/ai-news-week-of-october-19-to-26-2026-8adc02ca81c0",
+            "publishedDate": "2026-10-23"
+          },
+          {
+            "title": "Decoding Data Science",
+            "url": "https://www.facebook.com/decodedatascience/posts/20-october-2026-daily-ai-data-news-summarytodays-key-updates-highlight-microsoft/1086517464180831",
+            "publishedDate": "2026-10-19"
+          },
+          {
+            "title": "AI News - Mid-October 2026",
+            "url": "https://www.youtube.com/watch?v=QoOyAzB_RtM",
+            "publishedDate": "2026-10-18"
+          },
+          {
+            "title": "OpenAI resumes AI training after security overhaul | The Straits Times",
+            "url": "https://www.straitstimes.com/world/openai-resumes-frontier-ai-training-after-security-overhaul-discloses-flaw-in-widely-used-software?ref=latest",
+            "publishedDate": "2026-10-24"
+          },
+          {
+            "title": "UK £100M AI Biosecurity Lab: OpenAI & Anthropic Join [2026]",
+            "url": "https://tech-insider.org/uk-ai-biosecurity-lab-100-million-openai-anthropic-2026",
+            "publishedDate": "2026-10-24"
+          },
+          {
+            "title": "UK AI Biosecurity Lab: £100M + £200M Credits [2026]",
+            "url": "https://shattered.io/uk-ai-biosecurity-lab-100m-openai-anthropic-200m-credits-2026",
+            "publishedDate": "2026-10-24"
+          }
+        ],
+        "verdicts": [
+          {
+            "text": "AI NEWS: Week of October 19 to 26, 2026 (2026-10-23)",
+            "supported": true,
+            "note": "Source 1 provides the article with that title and date"
+          },
+          {
+            "text": "Decoding Data Science (2026-10-19)",
+            "supported": true,
+            "note": "Source 2 is the Decoding Data Science post dated 2026-10-19"
+          },
+          {
+            "text": "AI News - Mid-October 2026 (2026-10-18)",
+            "supported": true,
+            "note": "Source 3 is the AI News Mid-October 2026 video dated 2026-10-18"
+          },
+          {
+            "text": "OpenAI resumes AI training after security overhaul | The Straits Times (2026-10-24)",
+            "supported": true,
+            "note": "Source 4 is the Straits Times article with that title and date"
+          }
+        ],
+        "heuristicConfidence": {
+          "intent": 62,
+          "tool": 96,
+          "answer": 100,
+          "verifier": 100
+        }
+      },
+      "traceId": "83001546-3817-4410-ab42-ec44acb8890e",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 243,
+      "response": "Newest matching sources\n- AI NEWS: Week of October 19 to 26, 2026 (2026-10-23)\n- Decoding Data Science (2026-10-19)\n- AI News - Mid-October 2026 (2026-10-18)\n- OpenAI resumes AI training after security overhaul | The Straits Times (2026-10-24)"
+    },
+    {
+      "id": "curr-02",
+      "category": "current",
+      "query": "What is the current price of Bitcoin?",
+      "status": "degraded",
+      "error": "The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged. This summary is built only from the source titles and dates.",
+      "failedStage": null,
+      "routedBy": "keywords",
+      "intentLabel": "General Query",
+      "tool": "web_search",
+      "timings": {
+        "clientTotalMs": 8082.8,
+        "routeClientMs": 4.9,
+        "routeServerMs": 0.1,
+        "executeClientMs": 8077.8,
+        "executeFirstEventMs": 3220.3,
+        "executeFirstTokenMs": 5273.8,
+        "routeOverheadMs": 4.8,
+        "executeOutsideTracerMs": 528.8,
+        "postSpanServerMs": 239,
+        "serverExecuteMs": 7549,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 89,
+          "tool_execution": 3124,
+          "reasoning": 2055,
+          "reasoning_time_to_first_content": null,
+          "reasoning_content_stream": null,
+          "verification": 2041,
+          "replan": null
+        },
+        "spanSumMs": 7309,
+        "unattributedServerMs": 240,
+        "overlaps": []
+      },
+      "attempts": 1,
+      "replans": 0,
+      "reasoningUsedModel": false,
+      "spanErrors": [
+        "reasoning#1: The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged."
+      ],
+      "verification": {
+        "ran": true,
+        "verifier": "local",
+        "fallbackNote": "Model verification failed (The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged.), used word-overlap check",
+        "claimsChecked": 4,
+        "supported": 4,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": true,
+        "sourceCount": 6,
+        "sources": [
+          {
+            "title": "Fortune",
+            "url": "https://fortune.com/article/price-of-bitcoin-10-20-2026",
+            "publishedDate": "2026-10-21"
+          },
+          {
+            "title": "Current price of Bitcoin for MM-DD-YYYY | Fortune",
+            "url": "https://fortune.com/article/price-of-bitcoin-10-22-2026",
+            "publishedDate": "2026-10-23"
+          },
+          {
+            "title": "Current price of Bitcoin for Oct. 21, 2026 | Fortune",
+            "url": "https://fortune.com/article/price-of-bitcoin-10-21-2026",
+            "publishedDate": "2026-10-22"
+          },
+          {
+            "title": "Current price of Bitcoin for Oct. 23, 2026 | Fortune",
+            "url": "https://fortune.com/article/price-of-bitcoin-10-23-2026",
+            "publishedDate": "2026-10-23"
+          },
+          {
+            "title": "AI Price Prediction: We Asked ChatGPT if Bitcoin Can Get Back Above $100,000 in 2026 - 24/7 Wall St.",
+            "url": "https://247wallst.com/investing/cryptocurrency/2026/10/21/ai-price-prediction-we-asked-chatgpt-if-bitcoin-can-get-back-above-100000-in-2026",
+            "publishedDate": "2026-10-21"
+          },
+          {
+            "title": "Current price of Bitcoin for Oct. 19, 2026 | Fortune",
+            "url": "https://fortune.com/article/price-of-bitcoin-10-19-2026",
+            "publishedDate": "2026-10-19"
+          }
+        ],
+        "verdicts": [
+          {
+            "text": "Fortune (2026-10-21)",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "Current price of Bitcoin for MM-DD-YYYY | Fortune (2026-10-23)",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "Current price of Bitcoin for Oct. 21, 2026 | Fortune (2026-10-22)",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "Current price of Bitcoin for Oct. 23, 2026 | Fortune (2026-10-23)",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          }
+        ],
+        "heuristicConfidence": {
+          "intent": 62,
+          "tool": 96,
+          "answer": 100,
+          "verifier": 100
+        }
+      },
+      "traceId": "f9efd9a2-b643-4de3-ba92-eaeb7e1533e1",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 247,
+      "response": "Newest matching sources\n- Fortune (2026-10-21)\n- Current price of Bitcoin for MM-DD-YYYY | Fortune (2026-10-23)\n- Current price of Bitcoin for Oct. 21, 2026 | Fortune (2026-10-22)\n- Current price of Bitcoin for Oct. 23, 2026 | Fortune (2026-10-23)"
+    },
+    {
+      "id": "curr-03",
+      "category": "current",
+      "query": "What are the latest headlines about the Indian stock market?",
+      "status": "ok",
+      "error": null,
+      "failedStage": null,
+      "routedBy": "keywords",
+      "intentLabel": "Web Search",
+      "tool": "web_search",
+      "timings": {
+        "clientTotalMs": 12593.5,
+        "routeClientMs": 5.2,
+        "routeServerMs": 0.1,
+        "executeClientMs": 12588.2,
+        "executeFirstEventMs": 5733.4,
+        "executeFirstTokenMs": 9154.6,
+        "routeOverheadMs": 5.1,
+        "executeOutsideTracerMs": 517.2,
+        "postSpanServerMs": 236,
+        "serverExecuteMs": 12071,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 106,
+          "tool_execution": 5620,
+          "reasoning": 4046,
+          "reasoning_time_to_first_content": 3424,
+          "reasoning_content_stream": 622,
+          "verification": 2062,
+          "replan": null
+        },
+        "spanSumMs": 11834,
+        "unattributedServerMs": 237,
+        "overlaps": []
+      },
+      "attempts": 1,
+      "replans": 0,
+      "reasoningUsedModel": true,
+      "spanErrors": [],
+      "verification": {
+        "ran": true,
+        "verifier": "local",
+        "fallbackNote": "Model verification failed (The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged.), used word-overlap check",
+        "claimsChecked": 4,
+        "supported": 4,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": true,
+        "sourceCount": 6,
+        "sources": [
+          {
+            "title": "Stock Market Highlights For October 19, 2026: Sensex tumbles 876.37 points to settle at 73,852.90; Nifty drops to 22,888.95 - The Times of India",
+            "url": "https://timesofindia.indiatimes.com/business/india-business/sensex-stock-market-today-19-october-2026-live-updates-nse-bse-gift-nifty-50-top-gainers-losers-mcx-stocks-in-focus-market-news/liveblog/135038305.cms",
+            "publishedDate": "2026-10-19"
+          },
+          {
+            "title": "India’s Finance Minister Flags a Major 2027 Risk as Indian Stocks Slide Over 12%",
+            "url": "https://beincrypto.com/india-finance-minister-2027-economic-risk",
+            "publishedDate": "2026-10-19"
+          },
+          {
+            "title": "Stock Market Today Highlights, October 21: Sensex drops over 400 pts, Nifty at 22,700; Eternal, Bajaj Fin lead losers - The HinduBusinessLine",
+            "url": "https://www.thehindubusinessline.com/markets/sensex-nifty50-today-stock-market-live-updates-21st-october-2026/article71604730.ece",
+            "publishedDate": "2026-10-21"
+          },
+          {
+            "title": "Indian stock market ends lower on October 22, 2026",
+            "url": "https://www.facebook.com/groups/pakistanstockexchanges/posts/3186041088264678",
+            "publishedDate": "2026-10-07"
+          },
+          {
+            "title": "Top 3 Indian Growth Stocks To Watch In October 2026",
+            "url": "https://finance.yahoo.com/markets/stocks/articles/top-3-indian-growth-stocks-142145251.html",
+            "publishedDate": "2026-10-23"
+          },
+          {
+            "title": "70% of Nifty Stocks Above 10-Day Average, Small Caps Lag | Nation Path India",
+            "url": "https://nationpathindia.com/economy/nifty-market-breadth-large-cap-small-cap-october-19-2026",
+            "publishedDate": "2026-10-19"
+          }
+        ],
+        "verdicts": [
+          {
+            "text": "19 Oct 2026 – The BSE Sensex fell 876.37 points to 73,852.90 and the NSE Nifty 50 slipped to 22,888.95 as private‑bank stocks weakened, earnings disappointed and crude‑oil prices rose (Times of India, 2026‑10‑19 – older than today).",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "19 Oct 2026 – Finance Minister Nirmala Sitharaman warned that excess market liquidity could become a major risk for 2027 after the Sensex and Nifty had each dropped more than 12 % year‑to‑date (Beincrypto, 2026‑10‑19 – older than today).",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "21 Oct 2026 – The Sensex dropped over 400 points while the Nifty hovered around 22,700; stocks such as Eternal and Bajaj Fin led the list of losers (The Hindu BusinessLine, 2026‑10‑21 – older than today).",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "23 Oct 2026 – Analysts highlighted three high‑growth Indian stocks, with Timex Group India projected to deliver about 31.8 % annual earnings growth (Yahoo Finance, 2026‑10‑23 –",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          }
+        ],
+        "heuristicConfidence": {
+          "intent": 62,
+          "tool": 96,
+          "answer": 100,
+          "verifier": 100
+        }
+      },
+      "traceId": "46ad5a19-6b0d-4515-8ae1-a4a382a39dec",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 1019,
+      "response": "**Indian equities see mixed moves in late October 2026, with major indices slipping, a finance‑minister warning, and growth‑stock picks highlighted**  \n\n- 19 Oct 2026 – The BSE Sensex fell 876.37 points to 73,852.90 and the NSE Nifty 50 slipped to 22,888.95 as private‑bank stocks weakened, earnings disappointed and crude‑oil prices rose (Times of India, 2026‑10‑19 – older than today).  \n- 19 Oct 2026 – Finance Minister Nirmala Sitharaman warned that excess market liquidity could become a major risk for 2027 after the Sensex and Nifty had each dropped more than 12 % year‑to‑date (Beincrypto, 2026‑10‑19 – older than today).  \n- 21 Oct 2026 – The Sensex dropped over 400 points while the Nifty hovered around 22,700; stocks such as Eternal and Bajaj Fin led the list of losers (The Hindu BusinessLine, 2026‑10‑21 – older than today).  \n- 23 Oct 2026 – Analysts highlighted three high‑growth Indian stocks, with Timex Group India projected to deliver about 31.8 % annual earnings growth (Yahoo Finance, 2026‑10‑23 –"
+    },
+    {
+      "id": "curr-04",
+      "category": "current",
+      "query": "What is the weather in Bangalore today?",
+      "status": "degraded",
+      "error": "The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged. This summary is built only from the source titles and dates.",
+      "failedStage": null,
+      "routedBy": "keywords",
+      "intentLabel": "Job Search",
+      "tool": "web_search",
+      "timings": {
+        "clientTotalMs": 11615.6,
+        "routeClientMs": 4.7,
+        "routeServerMs": 0.1,
+        "executeClientMs": 11610.9,
+        "executeFirstEventMs": 6692.5,
+        "executeFirstTokenMs": 8777,
+        "routeOverheadMs": 4.6,
+        "executeOutsideTracerMs": 514.9,
+        "postSpanServerMs": 268,
+        "serverExecuteMs": 11096,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 104,
+          "tool_execution": 6583,
+          "reasoning": 2085,
+          "reasoning_time_to_first_content": null,
+          "reasoning_content_stream": null,
+          "verification": 2056,
+          "replan": null
+        },
+        "spanSumMs": 10828,
+        "unattributedServerMs": 268,
+        "overlaps": []
+      },
+      "attempts": 1,
+      "replans": 0,
+      "reasoningUsedModel": false,
+      "spanErrors": [
+        "reasoning#1: The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged."
+      ],
+      "verification": {
+        "ran": true,
+        "verifier": "local",
+        "fallbackNote": "Model verification failed (The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged.), used word-overlap check",
+        "claimsChecked": 4,
+        "supported": 4,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": true,
+        "sourceCount": 6,
+        "sources": [
+          {
+            "title": "Local Weather Report and Forecast",
+            "url": "https://city.imd.gov.in/citywx/city_weather_test_try_warnings.php?id=43295",
+            "publishedDate": "2026-10-21"
+          },
+          {
+            "title": "Bengaluru Weather Forecast & Update for Today, Friday ...",
+            "url": "https://www.facebook.com/latestly/posts/bengaluru-weather-forecast-update-for-today-friday-23-october-2026-expect-overca/1555331576631385",
+            "publishedDate": null
+          },
+          {
+            "title": "Bangalore Weather Today, Bangalore Temperature Hourly and Weekly Forecast | The Times of India",
+            "url": "https://timesofindia.indiatimes.com/weather/bangalore-weather-forecast-today/3261",
+            "publishedDate": "2026-10-22"
+          },
+          {
+            "title": "Extended weather forecast for Bengaluru: 15 days forecast for Karnataka, Bengaluru",
+            "url": "https://www.skymetweather.com/forecast/weather/india/karnataka/bangalore%20urban/bengaluru/extended-forecast",
+            "publishedDate": "2026-10-21"
+          },
+          {
+            "title": "Weather - Bengaluru - 14-Day Forecast & Rain | Ventusky",
+            "url": "https://www.ventusky.com/bengaluru",
+            "publishedDate": "2026-10-24"
+          },
+          {
+            "title": "Bangalore Weather Tomorrow 25 October 2026 – Hourly Forecast, Temperature & Rain Updates | The Times of India",
+            "url": "https://timesofindia.indiatimes.com/weather/tomorrow/bangalore-weather-forecast-tomorrow/3261",
+            "publishedDate": "2026-10-22"
+          }
+        ],
+        "verdicts": [
+          {
+            "text": "Local Weather Report and Forecast (2026-10-21)",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "Bengaluru Weather Forecast & Update for Today, Friday ... (no date on the source page)",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "Bangalore Weather Today, Bangalore Temperature Hourly and Weekly Forecast | The Times of India (2026-10-22)",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "Extended weather forecast for Bengaluru: 15 days forecast for Karnataka, Bengaluru (2026-10-21)",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          }
+        ],
+        "heuristicConfidence": {
+          "intent": 62,
+          "tool": 96,
+          "answer": 100,
+          "verifier": 100
+        }
+      },
+      "traceId": "e8f5bc0b-22bc-4d3b-ae6e-d789aa6092c8",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 369,
+      "response": "Newest matching sources\n- Local Weather Report and Forecast (2026-10-21)\n- Bengaluru Weather Forecast & Update for Today, Friday ... (no date on the source page)\n- Bangalore Weather Today, Bangalore Temperature Hourly and Weekly Forecast | The Times of India (2026-10-22)\n- Extended weather forecast for Bengaluru: 15 days forecast for Karnataka, Bengaluru (2026-10-21)"
+    },
+    {
+      "id": "curr-05",
+      "category": "current",
+      "query": "What is the latest stable version of Node.js?",
+      "status": "ok",
+      "error": null,
+      "failedStage": null,
+      "routedBy": "keywords",
+      "intentLabel": "Web Search",
+      "tool": "web_search",
+      "timings": {
+        "clientTotalMs": 9285.9,
+        "routeClientMs": 6.9,
+        "routeServerMs": 0.1,
+        "executeClientMs": 9279,
+        "executeFirstEventMs": 5007.1,
+        "executeFirstTokenMs": 6011.3,
+        "routeOverheadMs": 6.8,
+        "executeOutsideTracerMs": 519,
+        "postSpanServerMs": 238,
+        "serverExecuteMs": 8760,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 90,
+          "tool_execution": 4911,
+          "reasoning": 1478,
+          "reasoning_time_to_first_content": 1007,
+          "reasoning_content_stream": 471,
+          "verification": 2042,
+          "replan": null
+        },
+        "spanSumMs": 8521,
+        "unattributedServerMs": 239,
+        "overlaps": []
+      },
+      "attempts": 1,
+      "replans": 0,
+      "reasoningUsedModel": true,
+      "spanErrors": [],
+      "verification": {
+        "ran": true,
+        "verifier": "local",
+        "fallbackNote": "Model verification failed (The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged.), used word-overlap check",
+        "claimsChecked": 4,
+        "supported": 4,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": true,
+        "sourceCount": 6,
+        "sources": [
+          {
+            "title": "N8n Docker image move to Node.js 26.12.1 (Oct 21 security release)? - Questions - n8n Community",
+            "url": "https://community.n8n.io/t/n8n-docker-image-move-to-node-js-26-12-1-oct-21-security-release/323560?tl=en",
+            "publishedDate": "2026-10-21"
+          },
+          {
+            "title": "Node.js October 2026 Security Releases: alt-nodejs Updates for CloudLinux (CVE-2026-111497 and 9 Others) - CloudLinux",
+            "url": "https://blog.cloudlinux.com/node-js-october-2026-security-releases",
+            "publishedDate": "2026-10-22"
+          },
+          {
+            "title": "Node.js Patches Brotli Remote Code Execution Flaw: Find Vulnerable Runtimes Before Attackers Do | Qualys",
+            "url": "https://blog.qualys.com/product-tech/2026/10/23/node-js-patches-brotli-remote-code-execution-flaw-find-vulnerable-runtimes-before-attackers-do",
+            "publishedDate": "2026-10-23"
+          },
+          {
+            "title": "7 new Node.js vulnerabilities, 0 things for you to do",
+            "url": "https://www.hostinger.com/blog/securing-nodejs",
+            "publishedDate": "2026-10-22"
+          },
+          {
+            "title": "Node.js October 2026 Security Release: What It Means for Virto Commerce",
+            "url": "https://virtocommerce.com/blog/nodejs-october-2026-security-release",
+            "publishedDate": "2026-10-22"
+          },
+          {
+            "title": "alt-nodejs and ea-nodejs22 fix status and how to update",
+            "url": "https://cloudlinux.zendesk.com/hc/en-us/articles/31238185704220-Node-js-CVE-2026-111497-and-the-21-October-2026-security-release-alt-nodejs-and-ea-nodejs22-fix-status-and-how-to-update",
+            "publishedDate": "2026-10-21"
+          }
+        ],
+        "verdicts": [
+          {
+            "text": "The Node.js project issued security updates on 21 Oct 2026, releasing 22.23.4, 24.22.1 and **26.12.1** for its supported lines【1†2026-10-21】.",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "Version 26.x is the most recent major line, and 26.12.1 is the latest patch in that line【3†2026-10-23】.",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "Node.js 26 is scheduled to become LTS on 28 Oct 2026, so 26.12.1 should be used before that transition【3†2026-10-23】.",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "Earlier major versions (22.x, 24.x) also received updates (22.23.4, 24.22.1) but are older than 26.12.1【1†2026-10-21】.",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          }
+        ],
+        "heuristicConfidence": {
+          "intent": 62,
+          "tool": 96,
+          "answer": 100,
+          "verifier": 100
+        }
+      },
+      "traceId": "583150c2-c025-4ad4-ab2c-407e844b740c",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 593,
+      "response": "**Node.js 26.12.1 is the newest stable release (as of the October 21 2026 security update).**  \n\n- The Node.js project issued security updates on 21 Oct 2026, releasing 22.23.4, 24.22.1 and **26.12.1** for its supported lines【1†2026-10-21】.  \n- Version 26.x is the most recent major line, and 26.12.1 is the latest patch in that line【3†2026-10-23】.  \n- Node.js 26 is scheduled to become LTS on 28 Oct 2026, so 26.12.1 should be used before that transition【3†2026-10-23】.  \n- Earlier major versions (22.x, 24.x) also received updates (22.23.4, 24.22.1) but are older than 26.12.1【1†2026-10-21】."
+    },
+    {
+      "id": "curr-06",
+      "category": "current",
+      "query": "Latest news about OpenAI this week",
+      "status": "degraded",
+      "error": "The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged. This summary is built only from the source titles and dates.",
+      "failedStage": null,
+      "routedBy": "keywords",
+      "intentLabel": "Web Search",
+      "tool": "web_search",
+      "timings": {
+        "clientTotalMs": 8510.5,
+        "routeClientMs": 4.6,
+        "routeServerMs": 0.1,
+        "executeClientMs": 8505.8,
+        "executeFirstEventMs": 3663.3,
+        "executeFirstTokenMs": 5707.1,
+        "routeOverheadMs": 4.5,
+        "executeOutsideTracerMs": 529.8,
+        "postSpanServerMs": 247,
+        "serverExecuteMs": 7976,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 112,
+          "tool_execution": 3546,
+          "reasoning": 2043,
+          "reasoning_time_to_first_content": null,
+          "reasoning_content_stream": null,
+          "verification": 2027,
+          "replan": null
+        },
+        "spanSumMs": 7728,
+        "unattributedServerMs": 248,
+        "overlaps": []
+      },
+      "attempts": 1,
+      "replans": 0,
+      "reasoningUsedModel": false,
+      "spanErrors": [
+        "reasoning#1: The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged."
+      ],
+      "verification": {
+        "ran": true,
+        "verifier": "model",
+        "fallbackNote": null,
+        "claimsChecked": 4,
+        "supported": 4,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": true,
+        "sourceCount": 6,
+        "sources": [
+          {
+            "title": "OpenAI Models Hit Google Cloud, Big 3 Complete",
+            "url": "https://tech-insider.org/openai-models-google-cloud-big-3-2026",
+            "publishedDate": "2026-10-21"
+          },
+          {
+            "title": "What Changed in October 2026: Two New Model Families, One Week Apart",
+            "url": "https://shattered.io/what-changed-in-october-2026-two-new-model-families-one-week-apart",
+            "publishedDate": "2026-10-20"
+          },
+          {
+            "title": "OpenAI is expanding ChatGPT ads to 26 more countries",
+            "url": "https://qz.com/openai-chatgpt-ads-26-countries-89-total-102126",
+            "publishedDate": "2026-10-21"
+          },
+          {
+            "title": "OpenAI's GPT-6 Agent Removed Safety Monitoring, Then Falsely Denied Doing So",
+            "url": "https://thehackernews.com/2026/10/openais-gpt-6-agent-removed-safety.html",
+            "publishedDate": "2026-10-21"
+          },
+          {
+            "title": "OpenAI says its agents turned off own safeguards | Technology News | Al Jazeera",
+            "url": "https://www.aljazeera.com/economy/2026/10/21/openai-says-its-agents-turned-off-own-safeguards",
+            "publishedDate": "2026-10-21"
+          },
+          {
+            "title": "The PHP bug marks a dangerous new era for the internet. OpenAI's poised to cash in | Fortune",
+            "url": "https://fortune.com/2026/10/22/php-security-flaw-ai-powered-attacks-hackers-openai-daybreak",
+            "publishedDate": "2026-10-23"
+          }
+        ],
+        "verdicts": [
+          {
+            "text": "OpenAI Models Hit Google Cloud, Big 3 Complete (2026-10-21)",
+            "supported": true,
+            "note": "Title and date appear in source 1"
+          },
+          {
+            "text": "What Changed in October 2026: Two New Model Families, One Week Apart (2026-10-20)",
+            "supported": true,
+            "note": "Title and date appear in source 2"
+          },
+          {
+            "text": "OpenAI is expanding ChatGPT ads to 26 more countries (2026-10-21)",
+            "supported": true,
+            "note": "Title and date appear in source 3"
+          },
+          {
+            "text": "OpenAI's GPT-6 Agent Removed Safety Monitoring, Then Falsely Denied Doing So (2026-10-21)",
+            "supported": true,
+            "note": "Title and date appear in source 4"
+          }
+        ],
+        "heuristicConfidence": {
+          "intent": 62,
+          "tool": 96,
+          "answer": 100,
+          "verifier": 100
+        }
+      },
+      "traceId": "4186b4c3-97f6-467e-b264-6a4e499f4db5",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 329,
+      "response": "Newest matching sources\n- OpenAI Models Hit Google Cloud, Big 3 Complete (2026-10-21)\n- What Changed in October 2026: Two New Model Families, One Week Apart (2026-10-20)\n- OpenAI is expanding ChatGPT ads to 26 more countries (2026-10-21)\n- OpenAI's GPT-6 Agent Removed Safety Monitoring, Then Falsely Denied Doing So (2026-10-21)"
+    },
+    {
+      "id": "multi-01",
+      "category": "multi_step",
+      "query": "A laptop costs 85,000 rupees and GST is 18%. What is the total price?",
+      "status": "degraded",
+      "error": "The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged. This summary is built only from the source titles and dates.",
+      "failedStage": null,
+      "routedBy": "keywords",
+      "intentLabel": "General Query",
+      "tool": "web_search",
+      "timings": {
+        "clientTotalMs": 6723.6,
+        "routeClientMs": 7.1,
+        "routeServerMs": 0.3,
+        "executeClientMs": 6716.5,
+        "executeFirstEventMs": 1852.7,
+        "executeFirstTokenMs": 3899.7,
+        "routeOverheadMs": 6.8,
+        "executeOutsideTracerMs": 528.5,
+        "postSpanServerMs": 235,
+        "serverExecuteMs": 6188,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 101,
+          "tool_execution": 1745,
+          "reasoning": 2048,
+          "reasoning_time_to_first_content": null,
+          "reasoning_content_stream": null,
+          "verification": 2058,
+          "replan": null
+        },
+        "spanSumMs": 5952,
+        "unattributedServerMs": 236,
+        "overlaps": []
+      },
+      "attempts": 1,
+      "replans": 0,
+      "reasoningUsedModel": false,
+      "spanErrors": [
+        "reasoning#1: The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged."
+      ],
+      "verification": {
+        "ran": true,
+        "verifier": "local",
+        "fallbackNote": "Model verification failed (The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged.), used word-overlap check",
+        "claimsChecked": 4,
+        "supported": 4,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": true,
+        "sourceCount": 6,
+        "sources": [
+          {
+            "title": "Best Business Laptop in South Africa (October 2026)",
+            "url": "https://www.youtube.com/watch?v=YjbwhVunFWM&vl=fr",
+            "publishedDate": null
+          },
+          {
+            "title": "GST on International Transactions: Rules, Charges & ...",
+            "url": "https://www.cashfree.com/blog/gst-on-international-transactions",
+            "publishedDate": "2026-10-21"
+          },
+          {
+            "title": "“10 days, 4 cities, every day dated. Typically about 22 ...",
+            "url": "https://www.instagram.com/p/DeosDqkCEFA",
+            "publishedDate": "2026-10-17"
+          },
+          {
+            "title": "PTA tax calculator 2026: iPhone tax and US import costs",
+            "url": "https://www.refurb.me/import-costs/pakistan",
+            "publishedDate": "2026-10-18"
+          },
+          {
+            "title": "NVIDIA RTX Spark Laptops Debut at $2,599 [2026]",
+            "url": "https://tech-insider.org/nvidia-rtx-spark-laptops-launch-2599-2026",
+            "publishedDate": "2026-10-18"
+          },
+          {
+            "title": "LinkedIn Learning Price in India: Premium Cost and GST",
+            "url": "https://digitavision.com/blog/linkedin-premium-cost-in-india",
+            "publishedDate": "2026-10-24"
+          }
+        ],
+        "verdicts": [
+          {
+            "text": "Best Business Laptop in South Africa (October 2026) (no date on the source page)",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "GST on International Transactions: Rules, Charges & ... (2026-10-21)",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "“10 days, 4 cities, every day dated. Typically about 22 ... (2026-10-17)",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "PTA tax calculator 2026: iPhone tax and US import costs (2026-10-18)",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          }
+        ],
+        "heuristicConfidence": {
+          "intent": 62,
+          "tool": 96,
+          "answer": 100,
+          "verifier": 100
+        }
+      },
+      "traceId": "cc1839ff-95d1-4cb9-bfe3-1a3e5c743d31",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 323,
+      "response": "Newest matching sources\n- Best Business Laptop in South Africa (October 2026) (no date on the source page)\n- GST on International Transactions: Rules, Charges & ... (2026-10-21)\n- “10 days, 4 cities, every day dated. Typically about 22 ... (2026-10-17)\n- PTA tax calculator 2026: iPhone tax and US import costs (2026-10-18)"
+    },
+    {
+      "id": "multi-02",
+      "category": "multi_step",
+      "query": "Compare pgvector and Pinecone for a small startup and recommend one.",
+      "status": "ok",
+      "error": null,
+      "failedStage": null,
+      "routedBy": "model",
+      "intentLabel": "compare_and_recommend",
+      "tool": "web_search",
+      "timings": {
+        "clientTotalMs": 10697.3,
+        "routeClientMs": 1174,
+        "routeServerMs": 1168.9,
+        "executeClientMs": 9523.3,
+        "executeFirstEventMs": 4575.8,
+        "executeFirstTokenMs": 6058.9,
+        "routeOverheadMs": 5.1,
+        "executeOutsideTracerMs": 516.3,
+        "postSpanServerMs": 249,
+        "serverExecuteMs": 9007,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 91,
+          "tool_execution": 4477,
+          "reasoning": 2118,
+          "reasoning_time_to_first_content": 1485,
+          "reasoning_content_stream": 633,
+          "verification": 2071,
+          "replan": null
+        },
+        "spanSumMs": 8757,
+        "unattributedServerMs": 250,
+        "overlaps": []
+      },
+      "attempts": 1,
+      "replans": 0,
+      "reasoningUsedModel": true,
+      "spanErrors": [],
+      "verification": {
+        "ran": true,
+        "verifier": "local",
+        "fallbackNote": "Model verification failed (The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged.), used word-overlap check",
+        "claimsChecked": 5,
+        "supported": 5,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": true,
+        "sourceCount": 6,
+        "sources": [
+          {
+            "title": "Pinecone vs pgvector: why did the “free” vector database ...",
+            "url": "https://www.instagram.com/reel/DewnS0sz_KT",
+            "publishedDate": null
+          },
+          {
+            "title": "Is Pinecone Worth It for Your Startup in 2026? Vector Database Pricing on One Workload - Startupik",
+            "url": "https://startupik.com/vector-database-pricing-2026",
+            "publishedDate": "2026-10-14"
+          },
+          {
+            "title": "Why we replaced Pinecone with PGVector - Confident AI",
+            "url": "https://www.confident-ai.com/blog/why-we-replaced-pinecone-with-pgvector",
+            "publishedDate": "2023-10-29"
+          },
+          {
+            "title": "Instagram",
+            "url": "https://www.instagram.com/reel/DepIBVQNSDw",
+            "publishedDate": null
+          },
+          {
+            "title": "pgvector vs. Dedicated Vector Databases: A Production ...",
+            "url": "https://www.facebook.com/MachineLearningMastery/posts/pgvector-vs-dedicated-vector-databases-a-production-benchmark/1686802132801859",
+            "publishedDate": null
+          },
+          {
+            "title": "The Vector DB Gold Rush — Pinecone's $750M flat round. 2019 to pgvector 2026. Ep 148.",
+            "url": "https://www.youtube.com/watch?v=VlzKrjz-XzM",
+            "publishedDate": null
+          }
+        ],
+        "verdicts": [
+          {
+            "text": "pgvector lets you store embeddings directly in PostgreSQL, keeping the stack simple (single system, SQL‑based) and works well for small‑to‑mid scale workloads【1†source date not provided】.",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "Pinecone is a managed, horizontally‑scalable service built for massive scale and high‑throughput use cases, which adds operational complexity and cost that small teams often don’t need【1†source date not provided】.",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "At roughly $160 / month Pinecone’s p1.x2 pod can deliver ~60 QPS with 0.99 accuracy, but the same budget for managed PostgreSQL may hit RAM limits, forcing slower KNN searches if the index doesn’t fit in memory【3†2023-10-29】.",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "pgvector is open‑source (PostgreSQL licence) with no licensing fees, while Pinecone’s pricing is usage‑based and can grow quickly as query volume or vector count increases【2†2026-10-14】.",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "Community support for Pinecone is larger, but pgvector’s ecosystem is mature enough for most startup needs; it becomes less optimal only beyond ~50 M‑100 M vectors where memory‑hungry HNSW indexes and single‑node limits become a bottleneck【6†source date not provided】.",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          }
+        ],
+        "heuristicConfidence": {
+          "intent": 88,
+          "tool": 96,
+          "answer": 100,
+          "verifier": 100
+        }
+      },
+      "traceId": "842e39b2-ddf1-4934-861e-866a7d60af54",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 1197,
+      "response": "**Recommendation: For a small startup, pgvector is the more suitable choice over Pinecone.**  \n\n- pgvector lets you store embeddings directly in PostgreSQL, keeping the stack simple (single system, SQL‑based) and works well for small‑to‑mid scale workloads【1†source date not provided】.  \n- Pinecone is a managed, horizontally‑scalable service built for massive scale and high‑throughput use cases, which adds operational complexity and cost that small teams often don’t need【1†source date not provided】.  \n- At roughly $160 / month Pinecone’s p1.x2 pod can deliver ~60 QPS with 0.99 accuracy, but the same budget for managed PostgreSQL may hit RAM limits, forcing slower KNN searches if the index doesn’t fit in memory【3†2023-10-29】.  \n- pgvector is open‑source (PostgreSQL licence) with no licensing fees, while Pinecone’s pricing is usage‑based and can grow quickly as query volume or vector count increases【2†2026-10-14】.  \n- Community support for Pinecone is larger, but pgvector’s ecosystem is mature enough for most startup needs; it becomes less optimal only beyond ~50 M‑100 M vectors where memory‑hungry HNSW indexes and single‑node limits become a bottleneck【6†source date not provided】."
+    },
+    {
+      "id": "multi-03",
+      "category": "multi_step",
+      "query": "Which of our Enterprise tier customers has the most open tickets?",
+      "status": "degraded",
+      "error": "The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged. These rows come straight from the database.",
+      "failedStage": null,
+      "routedBy": "model",
+      "intentLabel": "customer_ticket_analysis",
+      "tool": "database",
+      "timings": {
+        "clientTotalMs": 3825.2,
+        "routeClientMs": 825.3,
+        "routeServerMs": 818.4,
+        "executeClientMs": 2999.9,
+        "executeFirstEventMs": 200.6,
+        "executeFirstTokenMs": 2189.1,
+        "routeOverheadMs": 6.9,
+        "executeOutsideTracerMs": 545.9,
+        "postSpanServerMs": 268,
+        "serverExecuteMs": 2454,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 96,
+          "tool_execution": 100,
+          "reasoning": 1990,
+          "reasoning_time_to_first_content": null,
+          "reasoning_content_stream": null,
+          "verification": 0,
+          "replan": null
+        },
+        "spanSumMs": 2186,
+        "unattributedServerMs": 268,
+        "overlaps": []
+      },
+      "attempts": 1,
+      "replans": 0,
+      "reasoningUsedModel": false,
+      "spanErrors": [
+        "reasoning#1: The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged."
+      ],
+      "verification": {
+        "ran": true,
+        "verifier": "local",
+        "fallbackNote": "No sources to compare against",
+        "claimsChecked": 3,
+        "supported": 3,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": false,
+        "sourceCount": 0,
+        "sources": [],
+        "verdicts": [
+          {
+            "text": "Daniel Osei — Enterprise tier, 5 open ticket(s), last contact 2026-10-02",
+            "supported": true,
+            "note": "Checked against the computed result"
+          },
+          {
+            "text": "Aarti Deshmukh — Enterprise tier, 3 open ticket(s), last contact 2026-09-27",
+            "supported": true,
+            "note": "Checked against the computed result"
+          },
+          {
+            "text": "Leena Kapoor — Starter tier, 0 open ticket(s), last contact 2026-08-13",
+            "supported": true,
+            "note": "Checked against the computed result"
+          }
+        ],
+        "heuristicConfidence": {
+          "intent": 88,
+          "tool": 92,
+          "answer": 100,
+          "verifier": 100
+        }
+      },
+      "traceId": "4d132ffe-43e7-46b1-ae73-bd0e7c614533",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 265,
+      "response": "Matching customer records from Postgres\n- Daniel Osei — Enterprise tier, 5 open ticket(s), last contact 2026-10-02\n- Aarti Deshmukh — Enterprise tier, 3 open ticket(s), last contact 2026-09-27\n- Leena Kapoor — Starter tier, 0 open ticket(s), last contact 2026-08-13"
+    },
+    {
+      "id": "multi-04",
+      "category": "multi_step",
+      "query": "I invested 50000 and it grew to 72000. What is my ROI in percent?",
+      "status": "ok",
+      "error": null,
+      "failedStage": null,
+      "routedBy": "model",
+      "intentLabel": "calculate_roi",
+      "tool": "calculator",
+      "timings": {
+        "clientTotalMs": 1594.7,
+        "routeClientMs": 709.8,
+        "routeServerMs": 703.5,
+        "executeClientMs": 884.9,
+        "executeFirstEventMs": 116.5,
+        "executeFirstTokenMs": 116.5,
+        "routeOverheadMs": 6.3,
+        "executeOutsideTracerMs": 521.9,
+        "postSpanServerMs": 250,
+        "serverExecuteMs": 363,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 112,
+          "tool_execution": 1,
+          "reasoning": 0,
+          "reasoning_time_to_first_content": null,
+          "reasoning_content_stream": null,
+          "verification": 0,
+          "replan": null
+        },
+        "spanSumMs": 113,
+        "unattributedServerMs": 250,
+        "overlaps": []
+      },
+      "attempts": 1,
+      "replans": 0,
+      "reasoningUsedModel": false,
+      "spanErrors": [],
+      "verification": {
+        "ran": true,
+        "verifier": "local",
+        "fallbackNote": "No sources to compare against",
+        "claimsChecked": 4,
+        "supported": 4,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": false,
+        "sourceCount": 0,
+        "sources": [],
+        "verdicts": [
+          {
+            "text": "Initial: 50,000",
+            "supported": true,
+            "note": "Checked against the computed result"
+          },
+          {
+            "text": "Final: 72,000",
+            "supported": true,
+            "note": "Checked against the computed result"
+          },
+          {
+            "text": "Gain: 22,000",
+            "supported": true,
+            "note": "Checked against the computed result"
+          },
+          {
+            "text": "ROI: 44.00%",
+            "supported": true,
+            "note": "Checked against the computed result"
+          }
+        ],
+        "heuristicConfidence": {
+          "intent": 88,
+          "tool": 92,
+          "answer": 100,
+          "verifier": 100
+        }
+      },
+      "traceId": "6dfcdd72-3a90-4220-abd6-ebaaf280a421",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 93,
+      "response": "ROI from the numbers you typed\n- Initial: 50,000\n- Final: 72,000\n- Gain: 22,000\n- ROI: 44.00%"
+    },
+    {
+      "id": "multi-05",
+      "category": "multi_step",
+      "query": "Summarize this text and list two risks: Our team will migrate the billing service to Postgres next month. The migration needs a two-hour downtime window and the old API keys will stop working after the switch.",
+      "status": "ok",
+      "error": null,
+      "failedStage": null,
+      "routedBy": "model",
+      "intentLabel": "summarize_and_identify_risks",
+      "tool": "external_api",
+      "timings": {
+        "clientTotalMs": 2656.7,
+        "routeClientMs": 636.4,
+        "routeServerMs": 632,
+        "executeClientMs": 2020.3,
+        "executeFirstEventMs": 110.5,
+        "executeFirstTokenMs": 1023.4,
+        "routeOverheadMs": 4.4,
+        "executeOutsideTracerMs": 544.3,
+        "postSpanServerMs": 274,
+        "serverExecuteMs": 1476,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 106,
+          "tool_execution": 0,
+          "reasoning": 1096,
+          "reasoning_time_to_first_content": 915,
+          "reasoning_content_stream": 181,
+          "verification": 0,
+          "replan": null
+        },
+        "spanSumMs": 1202,
+        "unattributedServerMs": 274,
+        "overlaps": []
+      },
+      "attempts": 1,
+      "replans": 0,
+      "reasoningUsedModel": true,
+      "spanErrors": [],
+      "verification": {
+        "ran": true,
+        "verifier": "local",
+        "fallbackNote": "No sources to compare against",
+        "claimsChecked": 3,
+        "supported": 3,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": false,
+        "sourceCount": 0,
+        "sources": [],
+        "verdicts": [
+          {
+            "text": "The migration to Postgres is scheduled for next month, requiring a two‑hour downtime window.",
+            "supported": true,
+            "note": "Checked against the computed result"
+          },
+          {
+            "text": "Risk: The two‑hour downtime could interrupt billing operations and affect customers relying on the service.",
+            "supported": true,
+            "note": "Checked against the computed result"
+          },
+          {
+            "text": "Risk: Existing API keys will become invalid after the switch, potentially breaking integrations that haven’t been updated.",
+            "supported": true,
+            "note": "Checked against the computed result"
+          }
+        ],
+        "heuristicConfidence": {
+          "intent": 88,
+          "tool": 92,
+          "answer": 100,
+          "verifier": 100
+        }
+      },
+      "traceId": "b2a732d9-6843-48f1-b005-6c0e049f15cd",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 422,
+      "response": "**Team plans billing service migration to Postgres with downtime and API key changes**  \n- The migration to Postgres is scheduled for next month, requiring a two‑hour downtime window.  \n- Risk: The two‑hour downtime could interrupt billing operations and affect customers relying on the service.  \n- Risk: Existing API keys will become invalid after the switch, potentially breaking integrations that haven’t been updated."
+    },
+    {
+      "id": "multi-06",
+      "category": "multi_step",
+      "query": "Find the population of Canberra and tell me whether it is larger than 400,000.",
+      "status": "ok",
+      "error": null,
+      "failedStage": null,
+      "routedBy": "model",
+      "intentLabel": "population_comparison",
+      "tool": "web_search",
+      "timings": {
+        "clientTotalMs": 16668.4,
+        "routeClientMs": 1673,
+        "routeServerMs": 1668.8,
+        "executeClientMs": 14995.4,
+        "executeFirstEventMs": 9786.3,
+        "executeFirstTokenMs": 11769.1,
+        "routeOverheadMs": 4.2,
+        "executeOutsideTracerMs": 525.4,
+        "postSpanServerMs": 269,
+        "serverExecuteMs": 14470,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 90,
+          "tool_execution": 9690,
+          "reasoning": 2335,
+          "reasoning_time_to_first_content": 1985,
+          "reasoning_content_stream": 351,
+          "verification": 2085,
+          "replan": null
+        },
+        "spanSumMs": 14200,
+        "unattributedServerMs": 270,
+        "overlaps": []
+      },
+      "attempts": 1,
+      "replans": 0,
+      "reasoningUsedModel": true,
+      "spanErrors": [],
+      "verification": {
+        "ran": true,
+        "verifier": "local",
+        "fallbackNote": "Model verification failed (The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged.), used word-overlap check",
+        "claimsChecked": 4,
+        "supported": 4,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": true,
+        "sourceCount": 6,
+        "sources": [
+          {
+            "title": "Canberra by numbers",
+            "url": "https://www.act.gov.au/our-canberra/latest-news/2026/october/canberra-by-numbers",
+            "publishedDate": null
+          },
+          {
+            "title": "Andrew Barr's Post",
+            "url": "https://www.linkedin.com/posts/andrewbarrmla_ten-years-ago-we-set-out-to-build-a-broader-activity-7512293194127241216-YxwJ",
+            "publishedDate": "2026-10-03"
+          },
+          {
+            "title": "Canberra's population is expected to reach ...",
+            "url": "https://www.instagram.com/p/DesBtfZEjZh",
+            "publishedDate": null
+          },
+          {
+            "title": "This was how Northbourne Avenue, Canberra, looked from ...",
+            "url": "https://www.facebook.com/thecanberrapage/posts/this-was-how-northbourne-avenue-canberra-looked-from-on-high-in-1985-werent-thos/1582020063968382",
+            "publishedDate": null
+          },
+          {
+            "title": "Sell Your Home Without an Agent in Canberra",
+            "url": "https://www.propertynow.com.au/for-sale-by-owner-canberra",
+            "publishedDate": null
+          },
+          {
+            "title": "What Are The Capital Cities In Australia: A Complete Guide ...",
+            "url": "https://surveys.ecit.fsu.edu/what-are-the-capital-cities-in-australia-a-complete-guide-to-the-eight-state-and-territory-centres",
+            "publishedDate": null
+          }
+        ],
+        "verdicts": [
+          {
+            "text": "The ACT government’s “Canberra by numbers” page lists a total population of **489,668** (the source page does not publish a date).",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "A LinkedIn post by ACT Chief Minister Andrew Barr dated **2026‑10‑03** states Canberra is “approaching 500,000 residents.”",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "A Facebook post notes that **as of June 2023** the estimated population was **466,566**.",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "A PropertyNow article posted **8 days ago (≈ 16 Oct 2026)** reports a population of **403,468**.",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          }
+        ],
+        "heuristicConfidence": {
+          "intent": 88,
+          "tool": 96,
+          "answer": 100,
+          "verifier": 100
+        }
+      },
+      "traceId": "f9ed669d-81a4-4dd5-b652-369b7070bcce",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 657,
+      "response": "**Canberra’s population is well above 400,000, with the latest official figure near 490,000.**  \n\n- The ACT government’s “Canberra by numbers” page lists a total population of **489,668** (the source page does not publish a date).  \n- A LinkedIn post by ACT Chief Minister Andrew Barr dated **2026‑10‑03** states Canberra is “approaching 500,000 residents.”  \n- A Facebook post notes that **as of June 2023** the estimated population was **466,566**.  \n- A PropertyNow article posted **8 days ago (≈ 16 Oct 2026)** reports a population of **403,468**.  \n\nAll cited figures exceed 400,000, confirming that Canberra’s population is larger than that threshold."
+    },
+    {
+      "id": "mem-01",
+      "category": "memory",
+      "query": "Find AI Engineer jobs in Bangalore again",
+      "status": "degraded",
+      "error": "The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged. This summary is built only from the source titles and dates.",
+      "failedStage": null,
+      "routedBy": "model",
+      "intentLabel": "job_search",
+      "tool": "web_search",
+      "timings": {
+        "clientTotalMs": 12300.7,
+        "routeClientMs": 945.8,
+        "routeServerMs": 940.2,
+        "executeClientMs": 11354.8,
+        "executeFirstEventMs": 6102.9,
+        "executeFirstTokenMs": 8165.1,
+        "routeOverheadMs": 5.6,
+        "executeOutsideTracerMs": 520.8,
+        "postSpanServerMs": 248,
+        "serverExecuteMs": 10834,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 95,
+          "tool_execution": 6003,
+          "reasoning": 2063,
+          "reasoning_time_to_first_content": null,
+          "reasoning_content_stream": null,
+          "verification": 2425,
+          "replan": null
+        },
+        "spanSumMs": 10586,
+        "unattributedServerMs": 248,
+        "overlaps": []
+      },
+      "attempts": 1,
+      "replans": 0,
+      "reasoningUsedModel": false,
+      "spanErrors": [
+        "reasoning#1: The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged."
+      ],
+      "verification": {
+        "ran": true,
+        "verifier": "model",
+        "fallbackNote": null,
+        "claimsChecked": 4,
+        "supported": 4,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": true,
+        "sourceCount": 6,
+        "sources": [
+          {
+            "title": "Senior AI Engineer, Bangalore, India | Grab Careers",
+            "url": "https://www.grab.careers/en/jobs/744000156252394/senior-ai-engineer",
+            "publishedDate": null
+          },
+          {
+            "title": "AI Engineer/ Developer Job Details | Ametek, Inc.",
+            "url": "https://jobs.ametek.com/job/Bangalore-AI-Engineer-Developer-KA-560048/1441296700",
+            "publishedDate": null
+          },
+          {
+            "title": "1,300+ AI & AI Engineer Jobs (Oct 2026) | Weekday",
+            "url": "https://www.weekday.works/jobs/ai-jobs",
+            "publishedDate": null
+          },
+          {
+            "title": "Data and AI Engineer | Mercedes-Benz > Career > Job Search > Job Postings",
+            "url": "https://jobs.mercedes-benz.com/en/data-and-ai-engineer-243389-mer00049bj",
+            "publishedDate": null
+          },
+          {
+            "title": "Generative AI Engineer Job Bengaluru | Career at DXC Luxoft",
+            "url": "https://career.luxoft.com/jobs/generative-ai-engineer-18257",
+            "publishedDate": null
+          },
+          {
+            "title": "19,000 Ai Engineer Job Vacancies | Indeed",
+            "url": "https://in.indeed.com/q-ai-engineer-jobs.html",
+            "publishedDate": null
+          }
+        ],
+        "verdicts": [
+          {
+            "text": "Senior AI Engineer, Bangalore, India | Grab Careers (no date on the source page)",
+            "supported": true,
+            "note": "Found in source 1"
+          },
+          {
+            "text": "AI Engineer/ Developer Job Details | Ametek, Inc. (no date on the source page)",
+            "supported": true,
+            "note": "Found in source 2"
+          },
+          {
+            "text": "1,300+ AI & AI Engineer Jobs (Oct 2026) | Weekday (no date on the source page)",
+            "supported": true,
+            "note": "Found in source 3"
+          },
+          {
+            "text": "Data and AI Engineer | Mercedes-Benz > Career > Job Search > Job Postings (no date on the source page)",
+            "supported": true,
+            "note": "Found in source 4"
+          }
+        ],
+        "heuristicConfidence": {
+          "intent": 88,
+          "tool": 96,
+          "answer": 100,
+          "verifier": 100
+        }
+      },
+      "traceId": "c1e6c089-b023-4f94-9dca-3af4e5a57c30",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 373,
+      "response": "Newest matching sources\n- Senior AI Engineer, Bangalore, India | Grab Careers (no date on the source page)\n- AI Engineer/ Developer Job Details | Ametek, Inc. (no date on the source page)\n- 1,300+ AI & AI Engineer Jobs (Oct 2026) | Weekday (no date on the source page)\n- Data and AI Engineer | Mercedes-Benz > Career > Job Search > Job Postings (no date on the source page)"
+    },
+    {
+      "id": "mem-02",
+      "category": "memory",
+      "query": "What did you tell me earlier about pgvector?",
+      "status": "ok",
+      "error": null,
+      "failedStage": null,
+      "routedBy": "keywords",
+      "intentLabel": "General Query",
+      "tool": "web_search",
+      "timings": {
+        "clientTotalMs": 15488.4,
+        "routeClientMs": 1989.9,
+        "routeServerMs": 1985,
+        "executeClientMs": 13498.5,
+        "executeFirstEventMs": 7736.4,
+        "executeFirstTokenMs": 10122.1,
+        "routeOverheadMs": 4.9,
+        "executeOutsideTracerMs": 540.5,
+        "postSpanServerMs": 246,
+        "serverExecuteMs": 12958,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 98,
+          "tool_execution": 7631,
+          "reasoning": 2930,
+          "reasoning_time_to_first_content": 2388,
+          "reasoning_content_stream": 541,
+          "verification": 2053,
+          "replan": null
+        },
+        "spanSumMs": 12712,
+        "unattributedServerMs": 246,
+        "overlaps": []
+      },
+      "attempts": 1,
+      "replans": 0,
+      "reasoningUsedModel": true,
+      "spanErrors": [],
+      "verification": {
+        "ran": true,
+        "verifier": "local",
+        "fallbackNote": "Model verification failed (The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged.), used word-overlap check",
+        "claimsChecked": 5,
+        "supported": 5,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": true,
+        "sourceCount": 6,
+        "sources": [
+          {
+            "title": "How to Use pgvector to Search Documents by Meaning in PostgreSQL",
+            "url": "https://www.c-sharpcorner.com/article/how-to-use-pgvector-to-search-documents-by-meaning-in-postgresql",
+            "publishedDate": "2026-10-23"
+          },
+          {
+            "title": "pgvector download | SourceForge.net",
+            "url": "https://sourceforge.net/projects/pgvector.mirror",
+            "publishedDate": "2026-10-01"
+          },
+          {
+            "title": "EDB Docs - pgvector",
+            "url": "https://www.enterprisedb.com/docs/pg_extensions/pgvector",
+            "publishedDate": null
+          },
+          {
+            "title": "pgvector vs Dedicated Vector Databases | Which Vector Storage Solution Should You Choose? | Uplatz",
+            "url": "https://www.youtube.com/watch?v=NjpiTJJTTTQ",
+            "publishedDate": null
+          },
+          {
+            "title": "pgvector vs. Dedicated Vector Databases: A Production Benchmark - MachineLearningMastery.com",
+            "url": "https://machinelearningmastery.com/pgvector-vs-dedicated-vector-databases-a-production-benchmark",
+            "publishedDate": "2026-10-20"
+          },
+          {
+            "title": "pgvector for RAG: Do You Need a Vector Database?",
+            "url": "https://www.devart.com/blog/pgvector-for-rag.html",
+            "publishedDate": "2026-10-06"
+          }
+        ],
+        "verdicts": [
+          {
+            "text": "pgvector introduces a `vector` column type, distance operators, and both exact and approximate nearest‑neighbor search directly in SQL (Memory note 2026‑10‑10T10:07:09.072Z; source older than today).",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "It supports indexing methods such as HNSW and IVF to accelerate similarity queries on high‑dimensional embeddings (Source 2, 2026‑10‑01; source older than today).",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "The extension is at version 0.8.6 and works with PostgreSQL 13 and later (Source 5, 2026‑10‑20; source older than today).",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "pgvector does not generate embeddings; applications must create embeddings and store them in the `vector` column (Source 6, 2026‑10‑06; source older than today).",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "It is widely used for semantic search, retrieval‑augmented generation (RAG), and other embedding‑based AI/ML applications (Memory note 2026‑10‑10T10:06:39.390Z; source older than today).",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          }
+        ],
+        "heuristicConfidence": {
+          "intent": 62,
+          "tool": 96,
+          "answer": 100,
+          "verifier": 100
+        }
+      },
+      "traceId": "2b42a53d-a2ad-44ba-af2c-e5ea14729935",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 1034,
+      "response": "**Earlier I explained that pgvector is an open‑source PostgreSQL extension that adds native vector storage, indexing, and similarity‑search capabilities for AI‑driven workloads.**  \n\n- pgvector introduces a `vector` column type, distance operators, and both exact and approximate nearest‑neighbor search directly in SQL (Memory note 2026‑10‑10T10:07:09.072Z; source older than today).  \n- It supports indexing methods such as HNSW and IVF to accelerate similarity queries on high‑dimensional embeddings (Source 2, 2026‑10‑01; source older than today).  \n- The extension is at version 0.8.6 and works with PostgreSQL 13 and later (Source 5, 2026‑10‑20; source older than today).  \n- pgvector does not generate embeddings; applications must create embeddings and store them in the `vector` column (Source 6, 2026‑10‑06; source older than today).  \n- It is widely used for semantic search, retrieval‑augmented generation (RAG), and other embedding‑based AI/ML applications (Memory note 2026‑10‑10T10:06:39.390Z; source older than today)."
+    },
+    {
+      "id": "mem-03",
+      "category": "memory",
+      "query": "Tell me about customer Rohan Mehta's open tickets",
+      "status": "degraded",
+      "error": "The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged. These rows come straight from the database.",
+      "failedStage": null,
+      "routedBy": "model",
+      "intentLabel": "fetch_customer_tickets",
+      "tool": "database",
+      "timings": {
+        "clientTotalMs": 4377.3,
+        "routeClientMs": 1402.8,
+        "routeServerMs": 1395.6,
+        "executeClientMs": 2974.5,
+        "executeFirstEventMs": 205.6,
+        "executeFirstTokenMs": 2199.5,
+        "routeOverheadMs": 7.2,
+        "executeOutsideTracerMs": 529.5,
+        "postSpanServerMs": 249,
+        "serverExecuteMs": 2445,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 84,
+          "tool_execution": 116,
+          "reasoning": 1995,
+          "reasoning_time_to_first_content": null,
+          "reasoning_content_stream": null,
+          "verification": 0,
+          "replan": null
+        },
+        "spanSumMs": 2195,
+        "unattributedServerMs": 250,
+        "overlaps": []
+      },
+      "attempts": 1,
+      "replans": 0,
+      "reasoningUsedModel": false,
+      "spanErrors": [
+        "reasoning#1: The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged."
+      ],
+      "verification": {
+        "ran": true,
+        "verifier": "local",
+        "fallbackNote": "No sources to compare against",
+        "claimsChecked": 3,
+        "supported": 3,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": false,
+        "sourceCount": 0,
+        "sources": [],
+        "verdicts": [
+          {
+            "text": "Rohan Mehta — Growth tier, 1 open ticket(s), last contact 2026-09-30",
+            "supported": true,
+            "note": "Checked against the computed result"
+          },
+          {
+            "text": "Daniel Osei — Enterprise tier, 5 open ticket(s), last contact 2026-10-02",
+            "supported": true,
+            "note": "Checked against the computed result"
+          },
+          {
+            "text": "Leena Kapoor — Starter tier, 0 open ticket(s), last contact 2026-08-13",
+            "supported": true,
+            "note": "Checked against the computed result"
+          }
+        ],
+        "heuristicConfidence": {
+          "intent": 88,
+          "tool": 92,
+          "answer": 100,
+          "verifier": 100
+        }
+      },
+      "traceId": "284a55d9-5277-43c5-937e-b5b2d2e34a8b",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 258,
+      "response": "Matching customer records from Postgres\n- Rohan Mehta — Growth tier, 1 open ticket(s), last contact 2026-09-30\n- Daniel Osei — Enterprise tier, 5 open ticket(s), last contact 2026-10-02\n- Leena Kapoor — Starter tier, 0 open ticket(s), last contact 2026-08-13"
+    },
+    {
+      "id": "mem-04",
+      "category": "memory",
+      "query": "Update me on the 10-day Bali trip plan we discussed",
+      "status": "ok",
+      "error": null,
+      "failedStage": null,
+      "routedBy": "model",
+      "intentLabel": "update_trip_plan",
+      "tool": "database",
+      "timings": {
+        "clientTotalMs": 2081.7,
+        "routeClientMs": 1082.6,
+        "routeServerMs": 1078,
+        "executeClientMs": 999,
+        "executeFirstEventMs": 216.2,
+        "executeFirstTokenMs": 216.3,
+        "routeOverheadMs": 4.6,
+        "executeOutsideTracerMs": 541,
+        "postSpanServerMs": 247,
+        "serverExecuteMs": 458,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 122,
+          "tool_execution": 88,
+          "reasoning": 0,
+          "reasoning_time_to_first_content": null,
+          "reasoning_content_stream": null,
+          "verification": 0,
+          "replan": null
+        },
+        "spanSumMs": 210,
+        "unattributedServerMs": 248,
+        "overlaps": []
+      },
+      "attempts": 1,
+      "replans": 0,
+      "reasoningUsedModel": false,
+      "spanErrors": [],
+      "verification": {
+        "ran": true,
+        "verifier": "local",
+        "fallbackNote": "No sources to compare against",
+        "claimsChecked": 0,
+        "supported": 0,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": false,
+        "sourceCount": 0,
+        "sources": [],
+        "verdicts": [],
+        "heuristicConfidence": {
+          "intent": 88,
+          "tool": 92,
+          "answer": 70,
+          "verifier": 70
+        }
+      },
+      "traceId": "5c5499ed-157d-407a-8a62-32804d427de7",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 120,
+      "response": "No customer matched this query in the Postgres customers table. Do not invent a customer, ticket count, or account tier."
+    },
+    {
+      "id": "mem-05",
+      "category": "memory",
+      "query": "What was the ROI calculation I asked you for earlier?",
+      "status": "ok",
+      "error": null,
+      "failedStage": null,
+      "routedBy": "model",
+      "intentLabel": "retrieve_roi",
+      "tool": "database",
+      "timings": {
+        "clientTotalMs": 2136.9,
+        "routeClientMs": 1184.7,
+        "routeServerMs": 1181.1,
+        "executeClientMs": 952.2,
+        "executeFirstEventMs": 191.9,
+        "executeFirstTokenMs": 191.9,
+        "routeOverheadMs": 3.6,
+        "executeOutsideTracerMs": 529.2,
+        "postSpanServerMs": 236,
+        "serverExecuteMs": 423,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 93,
+          "tool_execution": 94,
+          "reasoning": 0,
+          "reasoning_time_to_first_content": null,
+          "reasoning_content_stream": null,
+          "verification": 0,
+          "replan": null
+        },
+        "spanSumMs": 187,
+        "unattributedServerMs": 236,
+        "overlaps": []
+      },
+      "attempts": 1,
+      "replans": 0,
+      "reasoningUsedModel": false,
+      "spanErrors": [],
+      "verification": {
+        "ran": true,
+        "verifier": "local",
+        "fallbackNote": "No sources to compare against",
+        "claimsChecked": 0,
+        "supported": 0,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": false,
+        "sourceCount": 0,
+        "sources": [],
+        "verdicts": [],
+        "heuristicConfidence": {
+          "intent": 88,
+          "tool": 92,
+          "answer": 70,
+          "verifier": 70
+        }
+      },
+      "traceId": "09eb074d-fa75-4ce1-8782-bc56ee5cc38f",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 120,
+      "response": "No customer matched this query in the Postgres customers table. Do not invent a customer, ticket count, or account tier."
+    },
+    {
+      "id": "mem-06",
+      "category": "memory",
+      "query": "Tell me more about Nvidia",
+      "status": "ok",
+      "error": null,
+      "failedStage": null,
+      "routedBy": "model",
+      "intentLabel": "company_info",
+      "tool": "web_search",
+      "timings": {
+        "clientTotalMs": 14378.9,
+        "routeClientMs": 1697.6,
+        "routeServerMs": 1694.5,
+        "executeClientMs": 12681.2,
+        "executeFirstEventMs": 5787.1,
+        "executeFirstTokenMs": 9284,
+        "routeOverheadMs": 3.1,
+        "executeOutsideTracerMs": 524.2,
+        "postSpanServerMs": 237,
+        "serverExecuteMs": 12157,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 91,
+          "tool_execution": 5689,
+          "reasoning": 4061,
+          "reasoning_time_to_first_content": 3500,
+          "reasoning_content_stream": 561,
+          "verification": 2079,
+          "replan": null
+        },
+        "spanSumMs": 11920,
+        "unattributedServerMs": 237,
+        "overlaps": []
+      },
+      "attempts": 1,
+      "replans": 0,
+      "reasoningUsedModel": true,
+      "spanErrors": [],
+      "verification": {
+        "ran": true,
+        "verifier": "local",
+        "fallbackNote": "Model verification failed (The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged.), used word-overlap check",
+        "claimsChecked": 5,
+        "supported": 5,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": true,
+        "sourceCount": 6,
+        "sources": [
+          {
+            "title": "Nvidia | The Verge",
+            "url": "https://www.theverge.com/nvidia",
+            "publishedDate": "2026-10-22"
+          },
+          {
+            "title": "Nvidia corporation overview of AI, gaming and robotics",
+            "url": "https://www.facebook.com/maksod.khan.9/posts/-nvidia-corporation-nvda-powering-a-smarter-worlddiscover-nvidias-leadership-in-/3688149427999347",
+            "publishedDate": null
+          },
+          {
+            "title": "NVIDIA Corporation Company Profile, Statistics and Facts | Bullfincher",
+            "url": "https://bullfincher.io/companies/nvidia-corporation/overview",
+            "publishedDate": null
+          },
+          {
+            "title": "NVIDIA Company Profile & Introduction",
+            "url": "https://www.moomoo.com/stock/NVDA-US/company?chain_id=Name1K9-3FXPhg.1ld8300&global_content=%7B%22promote_id%22%3A13643%2C%22sub_promote_id%22%3A47%2C%22f%22%3A%22www.moomoo.com%2Fsg%2Fhans%2Flearn%2Ftop-industrial-services-stocks-singapore%22%7D",
+            "publishedDate": null
+          },
+          {
+            "title": "What is NVIDIA? GPUs, CUDA, and AI explained | Hivenet",
+            "url": "https://www.hivenet.com/post/what-is-nvidia",
+            "publishedDate": "2026-10-19"
+          },
+          {
+            "title": "Senior Software Engineer - Storage | NVIDIA Corporation",
+            "url": "https://jobs.nvidia.com/careers/job/893393582160?domain=nvidia.com&hl=en&visitor_id=twitter",
+            "publishedDate": null
+          }
+        ],
+        "verdicts": [
+          {
+            "text": "Nvidia is one of the world’s biggest computer‑chip companies, best known for its line of graphics processing units (GPUs) that began in consumer gaming (The Verge, 2026‑10‑22).",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "The parallel‑processing power of Nvidia’s GPUs makes them especially effective for machine‑learning and AI tasks, driving high demand from researchers and businesses (The Verge, 2026‑10‑22; Hivenet, 2026‑10‑19).",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "Nvidia has expanded beyond gaming into data‑center AI platforms, networking, automotive solutions, and cloud gaming services such as GeForce NOW (Observatory memory, 2026‑10‑22T12:04:28.090Z).",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "The company designs and manufactures graphics processors, chipsets, networking hardware, and related software, and is headquartered in Santa Clara, California (Hivenet, 2026‑10‑19).",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "Nvidia operates through Compute & Networking and Graphics segments, delivering products like GeForce, Quadro/NVIDIA RTX GPUs for gaming and professional visualization (Observatory memory, 2026‑10‑22T12:04:28.090Z).",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          }
+        ],
+        "heuristicConfidence": {
+          "intent": 88,
+          "tool": 96,
+          "answer": 100,
+          "verifier": 100
+        }
+      },
+      "traceId": "e2ec3d8c-d632-490d-8011-27db01658b11",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 1066,
+      "response": "**Nvidia: A global leader in GPUs, AI, and accelerated computing**  \n\n- Nvidia is one of the world’s biggest computer‑chip companies, best known for its line of graphics processing units (GPUs) that began in consumer gaming (The Verge, 2026‑10‑22).  \n- The parallel‑processing power of Nvidia’s GPUs makes them especially effective for machine‑learning and AI tasks, driving high demand from researchers and businesses (The Verge, 2026‑10‑22; Hivenet, 2026‑10‑19).  \n- Nvidia has expanded beyond gaming into data‑center AI platforms, networking, automotive solutions, and cloud gaming services such as GeForce NOW (Observatory memory, 2026‑10‑22T12:04:28.090Z).  \n- The company designs and manufactures graphics processors, chipsets, networking hardware, and related software, and is headquartered in Santa Clara, California (Hivenet, 2026‑10‑19).  \n- Nvidia operates through Compute & Networking and Graphics segments, delivering products like GeForce, Quadro/NVIDIA RTX GPUs for gaming and professional visualization (Observatory memory, 2026‑10‑22T12:04:28.090Z)."
+    },
+    {
+      "id": "weak-01",
+      "category": "insufficient_evidence",
+      "query": "What was the exact revenue of Zentrix Quantum Labs in fiscal year 2025?",
+      "status": "degraded",
+      "error": "The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged. This summary is built only from the source titles and dates.",
+      "failedStage": null,
+      "routedBy": "model",
+      "intentLabel": "revenue_query",
+      "tool": "web_search",
+      "timings": {
+        "clientTotalMs": 18076.4,
+        "routeClientMs": 2994.9,
+        "routeServerMs": 2989.8,
+        "executeClientMs": 15081.5,
+        "executeFirstEventMs": 8265.4,
+        "executeFirstTokenMs": 10320.1,
+        "routeOverheadMs": 5.1,
+        "executeOutsideTracerMs": 520.5,
+        "postSpanServerMs": 257,
+        "serverExecuteMs": 14561,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 89,
+          "tool_execution": 8169,
+          "reasoning": 2055,
+          "reasoning_time_to_first_content": null,
+          "reasoning_content_stream": null,
+          "verification": 3990,
+          "replan": null
+        },
+        "spanSumMs": 14303,
+        "unattributedServerMs": 258,
+        "overlaps": []
+      },
+      "attempts": 1,
+      "replans": 0,
+      "reasoningUsedModel": false,
+      "spanErrors": [
+        "reasoning#1: The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged."
+      ],
+      "verification": {
+        "ran": true,
+        "verifier": "model",
+        "fallbackNote": null,
+        "claimsChecked": 4,
+        "supported": 4,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": true,
+        "sourceCount": 6,
+        "sources": [
+          {
+            "title": "Indian Startups Funding and Investors Data for 2026 (Updated Weekly)",
+            "url": "https://startuptalky.com/indian-startups-funding-investors-data-2026",
+            "publishedDate": "2026-10-19"
+          },
+          {
+            "title": "Google Security Operations release notes  |  Google Cloud Documentation",
+            "url": "https://docs.cloud.google.com/chronicle/docs/secops/release-notes",
+            "publishedDate": null
+          },
+          {
+            "title": "Dadacoin Blog | Crypto news, AI gaming & market analysis",
+            "url": "https://memedadacoin.com/blog",
+            "publishedDate": null
+          },
+          {
+            "title": "Rafizi demands PM come clean on Zetrix AI losses, immigration system's future | Malaysiakini",
+            "url": "https://www.malaysiakini.com/news/887475-rafizi-demands-pm-come-clean-on-zetrix-ai-losses-immigration-systems-future",
+            "publishedDate": "2026-10-20"
+          },
+          {
+            "title": "100 top companies and startups in Kampala in October 2026 - F6S",
+            "url": "https://www.f6s.com/companies/uganda/kampala/lo",
+            "publishedDate": null
+          },
+          {
+            "title": "VetsinTech NatSec + Space Innovation Summit in San Francisco",
+            "url": "https://www.linkedin.com/posts/vetsintech_natsec-vetsintech-openai-activity-7513693132572704768-sAuc",
+            "publishedDate": "2026-10-07"
+          }
+        ],
+        "verdicts": [
+          {
+            "text": "Indian Startups Funding and Investors Data for 2026 (Updated Weekly) (2026-10-19)",
+            "supported": true,
+            "note": "Title and date match source 1"
+          },
+          {
+            "text": "Google Security Operations release notes  |  Google Cloud Documentation (no date on the source page)",
+            "supported": true,
+            "note": "Title matches source 2"
+          },
+          {
+            "text": "Dadacoin Blog | Crypto news, AI gaming & market analysis (no date on the source page)",
+            "supported": true,
+            "note": "Title matches source 3"
+          },
+          {
+            "text": "Rafizi demands PM come clean on Zetrix AI losses, immigration system's future | Malaysiakini (2026-10-20)",
+            "supported": true,
+            "note": "Title and date match source 4"
+          }
+        ],
+        "heuristicConfidence": {
+          "intent": 88,
+          "tool": 96,
+          "answer": 100,
+          "verifier": 100
+        }
+      },
+      "traceId": "754dbb18-0128-415c-aa47-fb94a321b932",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 406,
+      "response": "Newest matching sources\n- Indian Startups Funding and Investors Data for 2026 (Updated Weekly) (2026-10-19)\n- Google Security Operations release notes  |  Google Cloud Documentation (no date on the source page)\n- Dadacoin Blog | Crypto news, AI gaming & market analysis (no date on the source page)\n- Rafizi demands PM come clean on Zetrix AI losses, immigration system's future | Malaysiakini (2026-10-20)"
+    },
+    {
+      "id": "weak-02",
+      "category": "insufficient_evidence",
+      "query": "What did the Razorpay CEO say in a private board meeting yesterday?",
+      "status": "ok",
+      "error": null,
+      "failedStage": null,
+      "routedBy": "keywords",
+      "intentLabel": "General Query",
+      "tool": "web_search",
+      "timings": {
+        "clientTotalMs": 15958,
+        "routeClientMs": 2019.8,
+        "routeServerMs": 2013.5,
+        "executeClientMs": 13938.2,
+        "executeFirstEventMs": 7719.1,
+        "executeFirstTokenMs": 10776.7,
+        "routeOverheadMs": 6.3,
+        "executeOutsideTracerMs": 512.2,
+        "postSpanServerMs": 229,
+        "serverExecuteMs": 13426,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 101,
+          "tool_execution": 7611,
+          "reasoning": 3404,
+          "reasoning_time_to_first_content": 3059,
+          "reasoning_content_stream": 345,
+          "verification": 2081,
+          "replan": null
+        },
+        "spanSumMs": 13197,
+        "unattributedServerMs": 229,
+        "overlaps": []
+      },
+      "attempts": 1,
+      "replans": 0,
+      "reasoningUsedModel": true,
+      "spanErrors": [],
+      "verification": {
+        "ran": true,
+        "verifier": "local",
+        "fallbackNote": "Model verification failed (The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged.), used word-overlap check",
+        "claimsChecked": 4,
+        "supported": 4,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": true,
+        "sourceCount": 6,
+        "sources": [
+          {
+            "title": "At Global Fintech Fest, Razorpay Presents AI Payments Model, Vulcan to PM Narendra Modi - Razorpay Newsroom",
+            "url": "https://razorpay.com/newsroom/at-global-fintech-fest-razorpay-presents-ai-payments-model-vulcan-to-pm-narendra-modi",
+            "publishedDate": "2026-10-08"
+          },
+          {
+            "title": "How Razorpay and Cars24 Became AI-Native Companies",
+            "url": "https://www.youtube.com/watch?v=wRheOPMSY2k",
+            "publishedDate": null
+          },
+          {
+            "title": "RAZORPAY FINANCIAL SERVICES PRIVATE LIMITED",
+            "url": "https://tracxn.com/d/legal-entities/india/razorpay-financial-services-private-limited/__bBtoMcPtnjUJBxBZ83VcbD-rXir-zApzDy_mhlKuZZw",
+            "publishedDate": "2024-06-21"
+          },
+          {
+            "title": "Nubank’s Cristina Junqueira on Reaching 140M Customers & their US Expansion",
+            "url": "https://fintechleaders.substack.com/p/nubanks-cristina-junqueira-on-reaching",
+            "publishedDate": "2026-10-13"
+          },
+          {
+            "title": "Razorpay's $5 billion valuation question | The Morning Context",
+            "url": "https://themorningcontext.com/business/razorpays-5-billion-valuation-question",
+            "publishedDate": null
+          },
+          {
+            "title": "Razorpay - 2026 Company Profile, Team, Funding, Competitors & Financials - Tracxn",
+            "url": "https://tracxn.com/d/companies/razorpay/__ARWa67NVJPe3TC11rYSBnp-0zVHbDAze4xZvzRsZzAI",
+            "publishedDate": null
+          }
+        ],
+        "verdicts": [
+          {
+            "text": "The most recent Razorpay‑related news article is dated 2026‑10‑08, covering the Global Fintech Fest and the AI Payments model (source 1).",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "Other retrieved sources (YouTube interview, valuation discussion, company profile) do not specify any board‑meeting comments and lack publication dates (sources 2, 5, 6).",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "The legal‑entity filing provides board member listings but is from 2024‑06‑21 and contains no meeting details (source 3).",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "Consequently, the specific statement made by CEO Harshil Mathur in a private board meeting yesterday is not captured in the available sources.",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          }
+        ],
+        "heuristicConfidence": {
+          "intent": 62,
+          "tool": 96,
+          "answer": 100,
+          "verifier": 100
+        }
+      },
+      "traceId": "b259e690-cf32-4942-aea7-f5872e871a61",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 711,
+      "response": "**No publicly available record of the Razorpay CEO’s remarks from a private board meeting held yesterday (2026‑10‑23).**  \n\n- The most recent Razorpay‑related news article is dated 2026‑10‑08, covering the Global Fintech Fest and the AI Payments model (source 1).  \n- Other retrieved sources (YouTube interview, valuation discussion, company profile) do not specify any board‑meeting comments and lack publication dates (sources 2, 5, 6).  \n- The legal‑entity filing provides board member listings but is from 2024‑06‑21 and contains no meeting details (source 3).  \n- Consequently, the specific statement made by CEO Harshil Mathur in a private board meeting yesterday is not captured in the available sources."
+    },
+    {
+      "id": "weak-03",
+      "category": "insufficient_evidence",
+      "query": "What is the phone number of customer Zorbax Quillfeather?",
+      "status": "ok",
+      "error": null,
+      "failedStage": null,
+      "routedBy": "model",
+      "intentLabel": "retrieve_customer_phone",
+      "tool": "database",
+      "timings": {
+        "clientTotalMs": 1707.1,
+        "routeClientMs": 723.8,
+        "routeServerMs": 718.2,
+        "executeClientMs": 983.3,
+        "executeFirstEventMs": 185.8,
+        "executeFirstTokenMs": 185.8,
+        "routeOverheadMs": 5.6,
+        "executeOutsideTracerMs": 555.3,
+        "postSpanServerMs": 245,
+        "serverExecuteMs": 428,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 93,
+          "tool_execution": 90,
+          "reasoning": 0,
+          "reasoning_time_to_first_content": null,
+          "reasoning_content_stream": null,
+          "verification": 0,
+          "replan": null
+        },
+        "spanSumMs": 183,
+        "unattributedServerMs": 245,
+        "overlaps": []
+      },
+      "attempts": 1,
+      "replans": 0,
+      "reasoningUsedModel": false,
+      "spanErrors": [],
+      "verification": {
+        "ran": true,
+        "verifier": "local",
+        "fallbackNote": "No sources to compare against",
+        "claimsChecked": 0,
+        "supported": 0,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": false,
+        "sourceCount": 0,
+        "sources": [],
+        "verdicts": [],
+        "heuristicConfidence": {
+          "intent": 88,
+          "tool": 92,
+          "answer": 70,
+          "verifier": 70
+        }
+      },
+      "traceId": "6e9b013a-4e3a-4c90-89f7-eecbcc96ef99",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 120,
+      "response": "No customer matched this query in the Postgres customers table. Do not invent a customer, ticket count, or account tier."
+    },
+    {
+      "id": "weak-04",
+      "category": "insufficient_evidence",
+      "query": "Who will win the 2030 FIFA World Cup?",
+      "status": "degraded",
+      "error": "The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged. This summary is built only from the source titles and dates.",
+      "failedStage": null,
+      "routedBy": "model",
+      "intentLabel": "predict_sports_outcome",
+      "tool": "web_search",
+      "timings": {
+        "clientTotalMs": 24340.6,
+        "routeClientMs": 985.9,
+        "routeServerMs": 982.5,
+        "executeClientMs": 23354.7,
+        "executeFirstEventMs": 4295.6,
+        "executeFirstTokenMs": 5956.6,
+        "routeOverheadMs": 3.4,
+        "executeOutsideTracerMs": 883.7,
+        "postSpanServerMs": 799,
+        "serverExecuteMs": 22471,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 92,
+          "tool_execution": 10506,
+          "reasoning": 4039,
+          "reasoning_time_to_first_content": 1662,
+          "reasoning_content_stream": 317,
+          "verification": 4079,
+          "replan": 2954
+        },
+        "spanSumMs": 21670,
+        "unattributedServerMs": 801,
+        "overlaps": []
+      },
+      "attempts": 2,
+      "replans": 1,
+      "reasoningUsedModel": true,
+      "spanErrors": [
+        "reasoning#2: The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged."
+      ],
+      "verification": {
+        "ran": true,
+        "verifier": "local",
+        "fallbackNote": "Model verification failed (The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged.), used word-overlap check",
+        "claimsChecked": 4,
+        "supported": 4,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": true,
+        "sourceCount": 6,
+        "sources": [
+          {
+            "title": "World Cup 2030 Early Prediction: France vs Argentina ...",
+            "url": "https://www.facebook.com/100063785482820/videos/world-cup-2030-early-prediction-the-road-to-the-2030-fifa-world-cup-final-is-ta/1534800378410998",
+            "publishedDate": null
+          },
+          {
+            "title": "2030 World Cup Power Rankings: Who are the top 15 nations in the men's game? - ESPN",
+            "url": "https://www.espn.com/soccer/story/_/id/50114003/fifa-world-cup-power-rankings-spain-brazil-germany-usa-mexico-england-argentina-france",
+            "publishedDate": "2026-10-07"
+          },
+          {
+            "title": "Why should the 2030 World Cup final be played in Morocco and not Spain?",
+            "url": "https://www.facebook.com/SKWAD.MA/videos/why-should-the-2030-world-cup-final-be-played-in-morocco-and-not-spain-/1036065392795364",
+            "publishedDate": null
+          },
+          {
+            "title": "FIFA launches tender of U.S. World Cup media rights for 2030",
+            "url": "https://www.cnbc.com/2026/10/22/fifa-launches-tender-of-us-world-cup-media-rights-for-2030.html",
+            "publishedDate": "2026-10-22"
+          },
+          {
+            "title": "FIFA opens bidding for 2030 and 2034 World Cup media ...",
+            "url": "https://www.reuters.com/business/media-telecom/fifa-opens-bidding-2030-2034-world-cup-media-rights-covering-us-puerto-rico-2026-10-22",
+            "publishedDate": "2026-10-22"
+          },
+          {
+            "title": "FIFA World Cup 2030: Netflix Scores Exclusive Broadcast Rights in Spain and Andorra - Netflix Tudum",
+            "url": "https://www.netflix.com/tudum/articles/fifa-world-cup-2030-watch-live-netflix",
+            "publishedDate": "2026-10-13"
+          }
+        ],
+        "verdicts": [
+          {
+            "text": "World Cup 2030 Early Prediction: France vs Argentina ... (no date on the source page)",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "2030 World Cup Power Rankings: Who are the top 15 nations in the men's game? - ESPN (2026-10-07)",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "Why should the 2030 World Cup final be played in Morocco and not Spain? (no date on the source page)",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "FIFA launches tender of U.S. World Cup media rights for 2030 (2026-10-22)",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          }
+        ],
+        "heuristicConfidence": {
+          "intent": 88,
+          "tool": 96,
+          "answer": 100,
+          "verifier": 100
+        }
+      },
+      "traceId": "ad4d0fab-a822-4c6b-a60a-5748498b7099",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 389,
+      "response": "Newest matching sources\n- World Cup 2030 Early Prediction: France vs Argentina ... (no date on the source page)\n- 2030 World Cup Power Rankings: Who are the top 15 nations in the men's game? - ESPN (2026-10-07)\n- Why should the 2030 World Cup final be played in Morocco and not Spain? (no date on the source page)\n- FIFA launches tender of U.S. World Cup media rights for 2030 (2026-10-22)"
+    },
+    {
+      "id": "weak-05",
+      "category": "insufficient_evidence",
+      "query": "What is the internal codename of Apple's unreleased 2028 iPhone?",
+      "status": "ok",
+      "error": null,
+      "failedStage": null,
+      "routedBy": "model",
+      "intentLabel": "information_query",
+      "tool": "web_search",
+      "timings": {
+        "clientTotalMs": 10365.1,
+        "routeClientMs": 927.1,
+        "routeServerMs": 922.1,
+        "executeClientMs": 9437.9,
+        "executeFirstEventMs": 5080.1,
+        "executeFirstTokenMs": 6214.3,
+        "routeOverheadMs": 5,
+        "executeOutsideTracerMs": 527.9,
+        "postSpanServerMs": 254,
+        "serverExecuteMs": 8910,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 93,
+          "tool_execution": 4983,
+          "reasoning": 1521,
+          "reasoning_time_to_first_content": 1136,
+          "reasoning_content_stream": 384,
+          "verification": 2060,
+          "replan": null
+        },
+        "spanSumMs": 8657,
+        "unattributedServerMs": 253,
+        "overlaps": []
+      },
+      "attempts": 1,
+      "replans": 0,
+      "reasoningUsedModel": true,
+      "spanErrors": [],
+      "verification": {
+        "ran": true,
+        "verifier": "local",
+        "fallbackNote": "Model verification failed (The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged.), used word-overlap check",
+        "claimsChecked": 4,
+        "supported": 4,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": true,
+        "sourceCount": 6,
+        "sources": [
+          {
+            "title": "iPhone 20: All the rumors about the anniversary model Apfelpatient",
+            "url": "https://www.apfelpatient.com/generally/iphone-2027-what-apple-is-planning-for-its-20th-anniversary",
+            "publishedDate": "2026-09-26"
+          },
+          {
+            "title": "Apple Vision Pro N224: 4 Designs, Puck Fight Inside",
+            "url": "https://shattered.io/apple-vision-pro-n224-four-designs-puck-2026",
+            "publishedDate": "2026-09-28"
+          },
+          {
+            "title": "Apple considering four new Vision Pro designs",
+            "url": "https://www.theapplepost.com/2026/09/28/72757/apple-considering-four-different-designs-for-completely-revamped-vision-pro",
+            "publishedDate": "2026-09-28"
+          },
+          {
+            "title": "Apple is reportedly embarking on a three-year plan to ...",
+            "url": "https://www.facebook.com/Wetechsavvy/posts/apple-is-reportedly-embarking-on-a-three-year-plan-to-redesign-the-iphone-signal/1745388594254137",
+            "publishedDate": null
+          },
+          {
+            "title": "Apple is reportedly developing a new Vision Pro-style ...",
+            "url": "https://www.instagram.com/p/Dd3BgWoRJCB",
+            "publishedDate": null
+          },
+          {
+            "title": "This is the updated iPhone roadmap for 2027 🔥",
+            "url": "https://www.facebook.com/theapplehubofficial/posts/this-is-the-updated-iphone-roadmap-for-2027/1677755874011006",
+            "publishedDate": null
+          }
+        ],
+        "verdicts": [
+          {
+            "text": "The iPhone 20 rumor article (2026‑09‑26) cites the internal codename **“Glasswing,”** but it refers to the upcoming anniversary model (likely the 2027 iPhone), not the 2028 device.",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "A Facebook post (no date) mentions a foldable iPhone with the codename **“V68,”** yet it is tied to a 2027 rollout and does not specify a 2028 iPhone.",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "All retrieved sources are from 2026 (September), i.e., older than today, and none directly name a codename for the 2028 iPhone.",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          },
+          {
+            "text": "Consequently, the specific internal codename for the 2028 iPhone remains unreported in the provided material.",
+            "supported": true,
+            "note": "Matches a retrieved source"
+          }
+        ],
+        "heuristicConfidence": {
+          "intent": 88,
+          "tool": 96,
+          "answer": 100,
+          "verifier": 100
+        }
+      },
+      "traceId": "8c02a777-1488-4f31-ac0e-dd91b97c8807",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 677,
+      "response": "**No available source provides the internal codename for Apple’s unreleased 2028 iPhone.**  \n\n- The iPhone 20 rumor article (2026‑09‑26) cites the internal codename **“Glasswing,”** but it refers to the upcoming anniversary model (likely the 2027 iPhone), not the 2028 device.  \n- A Facebook post (no date) mentions a foldable iPhone with the codename **“V68,”** yet it is tied to a 2027 rollout and does not specify a 2028 iPhone.  \n- All retrieved sources are from 2026 (September), i.e., older than today, and none directly name a codename for the 2028 iPhone.  \n- Consequently, the specific internal codename for the 2028 iPhone remains unreported in the provided material."
+    },
+    {
+      "id": "weak-06",
+      "category": "insufficient_evidence",
+      "query": "How many open tickets does customer Priya Natarajan have?",
+      "status": "degraded",
+      "error": "The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged. These rows come straight from the database.",
+      "failedStage": null,
+      "routedBy": "model",
+      "intentLabel": "check_open_tickets",
+      "tool": "database",
+      "timings": {
+        "clientTotalMs": 3731,
+        "routeClientMs": 767,
+        "routeServerMs": 762.7,
+        "executeClientMs": 2964,
+        "executeFirstEventMs": 191.9,
+        "executeFirstTokenMs": 2175.2,
+        "routeOverheadMs": 4.3,
+        "executeOutsideTracerMs": 541,
+        "postSpanServerMs": 250,
+        "serverExecuteMs": 2423,
+        "stages": {
+          "plan_bookkeeping": 0,
+          "memory_retrieval": 95,
+          "tool_execution": 93,
+          "reasoning": 1985,
+          "reasoning_time_to_first_content": null,
+          "reasoning_content_stream": null,
+          "verification": 0,
+          "replan": null
+        },
+        "spanSumMs": 2173,
+        "unattributedServerMs": 250,
+        "overlaps": []
+      },
+      "attempts": 1,
+      "replans": 0,
+      "reasoningUsedModel": false,
+      "spanErrors": [
+        "reasoning#1: The reasoning model is over capacity right now (Groq 429). The tool result below is unchanged."
+      ],
+      "verification": {
+        "ran": true,
+        "verifier": "local",
+        "fallbackNote": "No sources to compare against",
+        "claimsChecked": 3,
+        "supported": 3,
+        "unsupported": 0,
+        "uncertain": null,
+        "perClaimConfidence": null,
+        "checkedAgainstSources": false,
+        "sourceCount": 0,
+        "sources": [],
+        "verdicts": [
+          {
+            "text": "Leena Kapoor — Starter tier, 0 open ticket(s), last contact 2026-08-13",
+            "supported": true,
+            "note": "Checked against the computed result"
+          },
+          {
+            "text": "Sofia Marino — Growth tier, 2 open ticket(s), last contact 2026-09-18",
+            "supported": true,
+            "note": "Checked against the computed result"
+          },
+          {
+            "text": "Daniel Osei — Enterprise tier, 5 open ticket(s), last contact 2026-10-02",
+            "supported": true,
+            "note": "Checked against the computed result"
+          }
+        ],
+        "heuristicConfidence": {
+          "intent": 88,
+          "tool": 92,
+          "answer": 100,
+          "verifier": 100
+        }
+      },
+      "traceId": "78f57474-2440-4fa0-a8da-158eb8f1ca4d",
+      "model": "openai/gpt-oss-120b",
+      "responseChars": 259,
+      "response": "Matching customer records from Postgres\n- Leena Kapoor — Starter tier, 0 open ticket(s), last contact 2026-08-13\n- Sofia Marino — Growth tier, 2 open ticket(s), last contact 2026-09-18\n- Daniel Osei — Enterprise tier, 5 open ticket(s), last contact 2026-10-02"
+    }
+  ]
+}

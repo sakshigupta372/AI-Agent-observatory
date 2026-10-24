@@ -720,9 +720,12 @@ export async function POST({ request, locals }) {
   if (!query) return json({ error: 'Missing query' }, 400)
 
   if (body?.phase === 'route') {
+    const routeStarted = performance.now()
     const plan = await routeQuery(query)
     if (isFreshQuery(query)) plan.tool = 'web_search'
-    return json(plan)
+    const response = json(plan)
+    response.headers.set('Server-Timing', `route;dur=${(performance.now() - routeStarted).toFixed(1)}`)
+    return response
   }
 
   const plan = sanitizePlan(body?.plan, query)
@@ -912,14 +915,29 @@ export async function POST({ request, locals }) {
             } else {
               const messages = reasonMessages(query, plan, toolResult.toolContext, retrieved)
               if (retryNote) messages[1].content += retryNote
-              response = await streamGroq(messages, (delta) => send({ type: 'token', text: delta }), meter)
+              const streamStarted = performance.now()
+              let firstContentAt = null
+              response = await streamGroq(
+                messages,
+                (delta) => {
+                  if (firstContentAt === null) firstContentAt = performance.now()
+                  send({ type: 'token', text: delta })
+                },
+                meter
+              )
+              const streamEnded = performance.now()
+              rec.streamTiming = {
+                timeToFirstContentMs: firstContentAt === null ? null : Math.round(firstContentAt - streamStarted),
+                contentStreamMs: firstContentAt === null ? null : Math.round(streamEnded - firstContentAt),
+              }
             }
             if (attempt === 1 && inject === 'hallucinated_claim') {
               response = `${response}\n${FABRICATED_CLAIM}`
               await emitText(send, `\n${FABRICATED_CLAIM}`)
               rec.input.injectedFailure = 'hallucinated_claim'
             }
-            rec.output = { chars: response.length, answer: response }
+            rec.output = { chars: response.length, answer: response, usedModel: !direct, ...(rec.streamTiming || {}) }
+            delete rec.streamTiming
           },
           { attempt }
         )
