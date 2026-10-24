@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "note": "Fixed query set for scripts/runBenchmark.js. Categories describe what each query is meant to exercise; they are not ground-truth labels and no expected answers are recorded.",
+  "queries": [
+    { "id": "fact-01", "category": "factual", "query": "What is pgvector and what is it used for?" },
+    { "id": "fact-02", "category": "factual", "query": "Who created the Linux kernel?" },
+    { "id": "fact-03", "category": "factual", "query": "What is the difference between TCP and UDP?" },
+    { "id": "fact-04", "category": "factual", "query": "What does HNSW stand for in vector search?" },
+    { "id": "fact-05", "category": "factual", "query": "What is the boiling point of water at sea level in Fahrenheit?" },
+    { "id": "fact-06", "category": "factual", "query": "What is retrieval augmented generation?" },
+
+    { "id": "curr-01", "category": "current", "query": "What is the latest AI news today?" },
+    { "id": "curr-02", "category": "current", "query": "What is the current price of Bitcoin?" },
+    { "id": "curr-03", "category": "current", "query": "What are the latest headlines about the Indian stock market?" },
+    { "id": "curr-04", "category": "current", "query": "What is the weather in Bangalore today?" },
+    { "id": "curr-05", "category": "current", "query": "What is the latest stable version of Node.js?" },
+    { "id": "curr-06", "category": "current", "query": "Latest news about OpenAI this week" },
+
+    { "id": "multi-01", "category": "multi_step", "query": "A laptop costs 85,000 rupees and GST is 18%. What is the total price?" },
+    { "id": "multi-02", "category": "multi_step", "query": "Compare pgvector and Pinecone for a small startup and recommend one." },
+    { "id": "multi-03", "category": "multi_step", "query": "Which of our Enterprise tier customers has the most open tickets?" },
+    { "id": "multi-04", "category": "multi_step", "query": "I invested 50000 and it grew to 72000. What is my ROI in percent?" },
+    { "id": "multi-05", "category": "multi_step", "query": "Summarize this text and list two risks: Our team will migrate the billing service to Postgres next month. The migration needs a two-hour downtime window and the old API keys will stop working after the switch." },
+    { "id": "multi-06", "category": "multi_step", "query": "Find the population of Canberra and tell me whether it is larger than 400,000." },
+
+    { "id": "mem-01", "category": "memory", "query": "Find AI Engineer jobs in Bangalore again" },
+    { "id": "mem-02", "category": "memory", "query": "What did you tell me earlier about pgvector?" },
+    { "id": "mem-03", "category": "memory", "query": "Tell me about customer Rohan Mehta's open tickets" },
+    { "id": "mem-04", "category": "memory", "query": "Update me on the 10-day Bali trip plan we discussed" },
+    { "id": "mem-05", "category": "memory", "query": "What was the ROI calculation I asked you for earlier?" },
+    { "id": "mem-06", "category": "memory", "query": "Tell me more about Nvidia" },
+
+    { "id": "weak-01", "category": "insufficient_evidence", "query": "What was the exact revenue of Zentrix Quantum Labs in fiscal year 2025?" },
+    { "id": "weak-02", "category": "insufficient_evidence", "query": "What did the Razorpay CEO say in a private board meeting yesterday?" },
+    { "id": "weak-03", "category": "insufficient_evidence", "query": "What is the phone number of customer Zorbax Quillfeather?" },
+    { "id": "weak-04", "category": "insufficient_evidence", "query": "Who will win the 2030 FIFA World Cup?" },
+    { "id": "weak-05", "category": "insufficient_evidence", "query": "What is the internal codename of Apple's unreleased 2028 iPhone?" },
+    { "id": "weak-06", "category": "insufficient_evidence", "query": "How many open tickets does customer Priya Natarajan have?" }
+  ]
+}

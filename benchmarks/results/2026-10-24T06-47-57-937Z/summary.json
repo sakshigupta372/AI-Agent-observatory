@@ -1,0 +1,380 @@
+{
+  "meta": {
+    "startedAt": "2026-10-24T06:48:02.417Z",
+    "finishedAt": "2026-10-24T06:54:14.066Z",
+    "baseUrl": "http://localhost:4331",
+    "queryFile": "benchmarks/queries.json",
+    "queryFileVersion": 1,
+    "gitCommit": "db81655 (uncommitted changes present)",
+    "model": "openai/gpt-oss-120b",
+    "node": "v22.18.0",
+    "config": {
+      "verify": true,
+      "replan": true,
+      "maxRetries": 1,
+      "remember": false
+    },
+    "pauseMs": 2000,
+    "timeoutMs": 120000,
+    "warmupRuns": 1,
+    "warmups": [
+      {
+        "status": "ok",
+        "clientTotalMs": 2284.8,
+        "memoryMs": 675
+      }
+    ],
+    "percentileMethod": "nearest-rank",
+    "definitions": [
+      "End-to-end latency: client wall clock from sending the route request to receiving the `done` SSE event (performance.now in this script). Includes network to the server.",
+      "route_intent_planning_tool_selection: server time of the route request (Server-Timing header). Intent detection, planning (task list) and tool selection are produced by one Groq JSON call, so they cannot be timed separately. For questions matching the \"fresh\" keywords, or when the model call fails, keyword rules are used instead and this is near 0 ms (see routed_by).",
+      "plan_bookkeeping: the `plan` span inside execute only records the plan from the route step; it is not planning work and is not ranked.",
+      "memory_retrieval: embedding the question with the local MiniLM model plus the pgvector similarity query. The store swallows database errors and falls back to a lexical file search, which this benchmark cannot distinguish.",
+      "tool_execution: the tool span, summed across attempts. For web search it includes every Tavily request the tool made and the page fetches used to recover publication dates.",
+      "reasoning: the answer-writing step, summed across attempts. reasoning_time_to_first_content is from starting the Groq stream request to the first answer token (includes queueing, retries and the model's hidden reasoning); reasoning_content_stream is from the first to the last answer token, i.e. response generation. Calculator answers and database \"no match\" answers are written without a model call (reasoning_used_model = false).",
+      "verification: the verifier span, summed across attempts. It splits the answer into claims by taking lines that start with \"- \", then asks Groq to mark each one supported or not against the retrieved sources. If Groq fails it falls back to a word-overlap check (verifier = local).",
+      "Verifier labels are binary. supported = the verifier judged the claim to be present in the retrieved sources. unsupported = it was not found in those sources; this does not mean the claim is false. There is no uncertain/unverifiable label and no per-claim confidence. heuristicConfidence in the JSON is the app's display score, computed from routing method, source count and support rate; it is not a verifier output.",
+      "Runs whose tool returns no sources (calculator, database, text analysis, empty search) are verified by the local check, which marks every claim supported without comparing it to anything. They are reported separately and should not be read as evidence of correctness.",
+      "replan: the planner call that writes a new search query after a failed verification or empty search, summed across attempts.",
+      "unattributed_server: server execute total (tracer start to trace summary) minus the sum of all spans. Covers work between spans, such as SSE writes, and after the last span (overhead_post_span_server: the optional memory write and listing memories). Only computed when spans do not overlap.",
+      "overhead_execute_outside_tracer: client execute time minus server execute total. Covers request transit and body parsing before the tracer starts, saving the trace to Postgres, and delivering the done event. It is a difference of two durations measured by different clocks, not a separate timer.",
+      "overhead_route_outside_server: route round trip minus route server time, i.e. network and request handling outside the route handler.",
+      "Accounting: client total = route round trip + execute client time (plus the few microseconds between them). Route round trip = route server time + route overhead. Execute client time = server execute total + execute overhead outside the tracer.",
+      "Status: ok = answer with no error; degraded = an answer was produced but the agent reported an error (for example the model was unavailable and a fallback answer was used); failed = no answer; http_error, network_error, timeout, incomplete = the request did not complete normally.",
+      "Results vary between runs: the reasoning model runs at temperature 0.2 and web results change. Re-run to see the spread."
+    ]
+  },
+  "sampleCount": 30,
+  "statusCounts": {
+    "ok": 17,
+    "degraded": 13
+  },
+  "completedCount": 30,
+  "errorCount": 0,
+  "degradedCount": 13,
+  "endToEndLatencyMs": {
+    "n": 30,
+    "total": 311394.4,
+    "mean": 10379.8,
+    "median": 10522,
+    "p95": 24340.6,
+    "min": 1594.7,
+    "max": 25425
+  },
+  "endToEndLatencyAllRunsMs": {
+    "n": 30,
+    "total": 311394.4,
+    "mean": 10379.8,
+    "median": 10522,
+    "p95": 24340.6,
+    "min": 1594.7,
+    "max": 25425
+  },
+  "stageLatencyMs": {
+    "route_intent_planning_tool_selection": {
+      "n": 30,
+      "total": 29502.1,
+      "mean": 983.4,
+      "median": 940.2,
+      "p95": 2013.5,
+      "min": 0.1,
+      "max": 2989.8
+    },
+    "memory_retrieval": {
+      "n": 30,
+      "total": 2936,
+      "mean": 97.9,
+      "median": 95,
+      "p95": 112,
+      "min": 84,
+      "max": 122
+    },
+    "tool_execution": {
+      "n": 30,
+      "total": 133269,
+      "mean": 4442.3,
+      "median": 4983,
+      "p95": 10506,
+      "min": 0,
+      "max": 12053
+    },
+    "reasoning": {
+      "n": 30,
+      "total": 61201,
+      "mean": 2040,
+      "median": 2048,
+      "p95": 4046,
+      "min": 0,
+      "max": 4061
+    },
+    "verification": {
+      "n": 30,
+      "total": 51913,
+      "mean": 1730.4,
+      "median": 2053,
+      "p95": 4079,
+      "min": 0,
+      "max": 4577
+    },
+    "replan": {
+      "n": 3,
+      "total": 6986,
+      "mean": 2328.7,
+      "median": 2051,
+      "p95": 2954,
+      "min": 1981,
+      "max": 2954
+    },
+    "reasoning_time_to_first_content": {
+      "n": 15,
+      "total": 28112,
+      "mean": 1874.1,
+      "median": 1604,
+      "p95": 3500,
+      "min": 915,
+      "max": 3500
+    },
+    "reasoning_content_stream": {
+      "n": 15,
+      "total": 6533,
+      "mean": 435.5,
+      "median": 415,
+      "p95": 633,
+      "min": 181,
+      "max": 633
+    },
+    "plan_bookkeeping": {
+      "n": 30,
+      "total": 0,
+      "mean": 0,
+      "median": 0,
+      "p95": 0,
+      "min": 0,
+      "max": 0
+    },
+    "unattributed_server": {
+      "n": 30,
+      "total": 8579,
+      "mean": 286,
+      "median": 248,
+      "p95": 801,
+      "min": 229,
+      "max": 828
+    },
+    "route_client_roundtrip": {
+      "n": 30,
+      "total": 29664.8,
+      "mean": 988.8,
+      "median": 945.8,
+      "p95": 2019.8,
+      "min": 4.6,
+      "max": 2994.9
+    },
+    "overhead_route_outside_server": {
+      "n": 30,
+      "total": 162.7,
+      "mean": 5.4,
+      "median": 5.1,
+      "p95": 7.3,
+      "min": 3.1,
+      "max": 8.5
+    },
+    "overhead_execute_outside_tracer": {
+      "n": 30,
+      "total": 16844.6,
+      "mean": 561.5,
+      "median": 529.2,
+      "p95": 883.7,
+      "min": 512.2,
+      "max": 892.2
+    },
+    "overhead_post_span_server": {
+      "n": 30,
+      "total": 8565,
+      "mean": 285.5,
+      "median": 247,
+      "p95": 799,
+      "min": 229,
+      "max": 828
+    }
+  },
+  "slowestStage": {
+    "byTotalAccumulated": {
+      "name": "tool_execution",
+      "totalMs": 133269,
+      "runs": 30
+    },
+    "byAverage": {
+      "name": "tool_execution",
+      "meanMs": 4442.3,
+      "runs": 30
+    }
+  },
+  "spanErrorsByStage": {
+    "reasoning": 13
+  },
+  "verifierFallbackRuns": [
+    "fact-03",
+    "fact-04",
+    "fact-06",
+    "curr-02",
+    "curr-03",
+    "curr-04",
+    "curr-05",
+    "multi-01",
+    "multi-02",
+    "multi-06",
+    "mem-02",
+    "mem-06",
+    "weak-02",
+    "weak-04",
+    "weak-05"
+  ],
+  "runsWithOverlappingSpans": [],
+  "claims": {
+    "all": {
+      "runs": 30,
+      "claimsChecked": 109,
+      "supported": 109,
+      "unsupported": 0,
+      "unsupportedRate": 0
+    },
+    "checkedAgainstRetrievedSources": {
+      "runs": 22,
+      "claimsChecked": 93,
+      "supported": 93,
+      "unsupported": 0,
+      "unsupportedRate": 0
+    },
+    "withoutRetrievedSources": {
+      "runs": 8,
+      "claimsChecked": 16,
+      "supported": 16,
+      "unsupported": 0,
+      "unsupportedRate": 0
+    },
+    "byVerifier": {
+      "model": {
+        "runs": 7,
+        "claimsChecked": 28,
+        "supported": 28,
+        "unsupported": 0,
+        "unsupportedRate": 0
+      },
+      "local_word_overlap": {
+        "runs": 23,
+        "claimsChecked": 81,
+        "supported": 81,
+        "unsupported": 0,
+        "unsupportedRate": 0
+      }
+    },
+    "runsWithZeroClaims": [
+      "mem-04",
+      "mem-05",
+      "weak-03"
+    ]
+  },
+  "byCategory": {
+    "factual": {
+      "runs": 6,
+      "completed": 6,
+      "latencyMs": {
+        "n": 6,
+        "total": 80590.7,
+        "mean": 13431.8,
+        "median": 11126.2,
+        "p95": 25425,
+        "min": 8353.8,
+        "max": 25425
+      },
+      "claims": {
+        "runs": 6,
+        "claimsChecked": 26,
+        "supported": 26,
+        "unsupported": 0,
+        "unsupportedRate": 0
+      }
+    },
+    "current": {
+      "runs": 6,
+      "completed": 6,
+      "latencyMs": {
+        "n": 6,
+        "total": 63695.7,
+        "mean": 10615.9,
+        "median": 9285.9,
+        "p95": 13607.4,
+        "min": 8082.8,
+        "max": 13607.4
+      },
+      "claims": {
+        "runs": 6,
+        "claimsChecked": 24,
+        "supported": 24,
+        "unsupported": 0,
+        "unsupportedRate": 0
+      }
+    },
+    "multi_step": {
+      "runs": 6,
+      "completed": 6,
+      "latencyMs": {
+        "n": 6,
+        "total": 42165.9,
+        "mean": 7027.7,
+        "median": 3825.2,
+        "p95": 16668.4,
+        "min": 1594.7,
+        "max": 16668.4
+      },
+      "claims": {
+        "runs": 6,
+        "claimsChecked": 23,
+        "supported": 23,
+        "unsupported": 0,
+        "unsupportedRate": 0
+      }
+    },
+    "memory": {
+      "runs": 6,
+      "completed": 6,
+      "latencyMs": {
+        "n": 6,
+        "total": 50763.9,
+        "mean": 8460.6,
+        "median": 4377.3,
+        "p95": 15488.4,
+        "min": 2081.7,
+        "max": 15488.4
+      },
+      "claims": {
+        "runs": 6,
+        "claimsChecked": 17,
+        "supported": 17,
+        "unsupported": 0,
+        "unsupportedRate": 0
+      }
+    },
+    "insufficient_evidence": {
+      "runs": 6,
+      "completed": 6,
+      "latencyMs": {
+        "n": 6,
+        "total": 74178.2,
+        "mean": 12363,
+        "median": 10365.1,
+        "p95": 24340.6,
+        "min": 1707.1,
+        "max": 24340.6
+      },
+      "claims": {
+        "runs": 6,
+        "claimsChecked": 19,
+        "supported": 19,
+        "unsupported": 0,
+        "unsupportedRate": 0
+      }
+    }
+  }
+}
