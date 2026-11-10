@@ -1,5 +1,6 @@
 import { classify } from '../../data/scenarios.js'
 import { addMemory, listMemories, searchCustomers, searchMemories } from '../../server/memoryStore.js'
+import { checkLimits, clientIp } from '../../server/rateLimit.js'
 import { addUsage, createTracer, isEvalRequest, saveTrace } from '../../server/traces.js'
 
 const GROQ_API_KEY = import.meta.env.GROQ_API_KEY
@@ -19,11 +20,23 @@ function todayLabel() {
   }).format(new Date())
 }
 
-function json(body, status = 200) {
+function json(body, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...extraHeaders },
   })
+}
+
+const MAX_BODY_BYTES = 64 * 1024
+const MAX_QUERY_CHARS = 4000
+
+// Models sometimes put a no-break or narrow no-break space (U+202F) after the
+// dash; trim() and \s cover those, a literal '- ' check does not.
+function claimLines(response) {
+  return String(response)
+    .split('\n')
+    .map((line) => line.trim().match(/^-\s+(.*)$/)?.[1]?.trim())
+    .filter(Boolean)
 }
 
 function isFreshQuery(query) {
@@ -563,11 +576,7 @@ async function streamGroq(messages, onDelta, meter = null) {
 }
 
 function localVerdicts(response, sources) {
-  const bullets = String(response)
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line.startsWith('- '))
-    .map((line) => line.slice(2))
+  const bullets = claimLines(response)
   const haystack = sources.map((source) => `${source.title} ${source.content} ${source.publishedDate}`).join(' ').toLowerCase()
   return bullets.map((text) => {
     if (!sources.length) return { text, supported: true, note: 'Checked against the computed result' }
@@ -711,16 +720,34 @@ async function planRetry({ query, reason, unsupported, sources, meter }) {
 
 const supportRate = (verdicts) => (verdicts.length ? verdicts.filter((item) => item.supported).length / verdicts.length : 1)
 
-export async function POST({ request, locals }) {
+export async function POST({ request, locals, clientAddress }) {
+  if (Number(request.headers.get('content-length') || 0) > MAX_BODY_BYTES) {
+    return json({ error: 'Request body is too large' }, 413)
+  }
   let body
   try {
-    body = await request.json()
+    const raw = await request.text()
+    if (raw.length > MAX_BODY_BYTES) return json({ error: 'Request body is too large' }, 413)
+    body = JSON.parse(raw)
   } catch {
     return json({ error: 'Invalid JSON body' }, 400)
   }
 
   const query = typeof body?.query === 'string' ? body.query.trim() : ''
   if (!query) return json({ error: 'Missing query' }, 400)
+  if (query.length > MAX_QUERY_CHARS) {
+    return json({ error: `Questions are limited to ${MAX_QUERY_CHARS} characters (this one has ${query.length}).` }, 400)
+  }
+
+  const evalRun = isEvalRequest(request)
+  if (!evalRun) {
+    const limited = checkLimits({
+      phase: body?.phase === 'route' ? 'route' : 'execute',
+      ip: clientIp(request, clientAddress),
+      visitorId: locals?.visitorId || null,
+    })
+    if (limited) return json({ error: limited.error }, 429, { 'Retry-After': String(limited.retryAfter) })
+  }
 
   if (body?.phase === 'route') {
     const routeStarted = performance.now()
@@ -734,7 +761,7 @@ export async function POST({ request, locals }) {
   const plan = sanitizePlan(body?.plan, query)
   if (isFreshQuery(query) && !plan.steered) plan.tool = 'web_search'
   const config = normalizeConfig(body?.config)
-  const owner = isEvalRequest(request) ? 'eval' : locals?.visitorId || null
+  const owner = evalRun ? 'eval' : locals?.visitorId || null
   const inject = INJECTIONS.has(body?.inject) && plan.tool === 'web_search' ? body.inject : null
 
   return sse(async (send) => {
@@ -968,7 +995,7 @@ export async function POST({ request, locals }) {
         verdicts = await span(
           'verification',
           'verifier',
-          { claims: String(response).split('\n').filter((line) => line.trim().startsWith('- ')).length, sourceCount: toolResult.sources.length },
+          { claims: claimLines(response).length, sourceCount: toolResult.sources.length },
           async (rec) => {
             const checked = await verify(response, toolResult.sources, meter)
             const result = checked.verdicts
