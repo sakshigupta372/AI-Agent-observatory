@@ -6,6 +6,7 @@ export default defineConfig({
   output: 'server',
   adapter: node({ mode: 'standalone' }),
   integrations: [react()],
+  prefetch: { prefetchAll: true, defaultStrategy: 'hover' },
   server: {
     port: 4331,
     // The standalone server defaults to localhost, which a hosting proxy cannot

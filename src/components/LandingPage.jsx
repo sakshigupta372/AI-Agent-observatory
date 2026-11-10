@@ -199,7 +199,7 @@ export default function LandingPage() {
   return (
     <div className="landing">
       <SiteHeader current="/" />
-      <section className="hero frame">
+      <section className="hero frame" style={{ viewTransitionName: 'page-hero' }}>
         <div className="hero-sky" aria-hidden="true" />
         {show3D && (
           <Suspense fallback={null}>

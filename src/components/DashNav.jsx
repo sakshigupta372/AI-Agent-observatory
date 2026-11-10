@@ -25,7 +25,7 @@ export default function DashNav({ current, kicker, title, subtitle }) {
   return (
     <>
       <SiteHeader current={current} />
-      <section className="page-hero" ref={heroRef} onPointerMove={onMove}>
+      <section className="page-hero" ref={heroRef} onPointerMove={onMove} style={{ viewTransitionName: 'page-hero' }}>
         <div className="ph-sky" aria-hidden="true" />
         <div className="ph-orbs" aria-hidden="true">
           {ORBS.map(([kind, size, top, right, depth]) => (

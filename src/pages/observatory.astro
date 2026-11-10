@@ -1,12 +1,15 @@
 ---
+import PageTransitions from '../components/PageTransitions.astro'
+import { pageMotion } from '../data/pageMotion.js'
 import ObservatoryApp from '../components/ObservatoryApp.jsx'
 import '../styles/global.css'
 ---
-<html lang="en">
+<html lang="en" transition:animate={pageMotion}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Observatory · AI Agent Observatory</title>
+    <PageTransitions />
   </head>
   <body>
     <div class="app-root">

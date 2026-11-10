@@ -266,7 +266,7 @@ export default function AgentScene() {
     const url = new URL(window.location.href)
     if (id === undefined) url.searchParams.delete('demo')
     else url.searchParams.set('demo', id || '')
-    window.history.replaceState(null, '', url)
+    window.history.replaceState(window.history.state, '', url)
     setDemoParam(id === undefined ? null : id || '')
   }
 

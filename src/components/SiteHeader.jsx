@@ -9,11 +9,14 @@ export const SITE_LINKS = [
   ['/evals', 'Evaluations'],
 ]
 
+// Where the nav pill sat on the previous page; the module survives client-side navigation.
+let lastPill = null
+
 export default function SiteHeader({ current = '/' }) {
   const [solid, setSolid] = useState(false)
   const [hidden, setHidden] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [pill, setPill] = useState(null)
+  const [pill, setPill] = useState(lastPill)
   const progressRef = useRef(null)
   const navRef = useRef(null)
   const { totals, online } = useLiveTotals()
@@ -42,15 +45,26 @@ export default function SiteHeader({ current = '/' }) {
   }, [])
 
   const moveTo = (el) => setPill(el ? { href: el.getAttribute('href'), x: el.offsetLeft, w: el.offsetWidth } : null)
-  const resetPill = () => moveTo(navRef.current?.querySelector('a[aria-current="page"]'))
+  const resetPill = () => {
+    const el = navRef.current?.querySelector('a[aria-current="page"]')
+    moveTo(el)
+    if (el) lastPill = { href: el.getAttribute('href'), x: el.offsetLeft, w: el.offsetWidth }
+  }
 
   useLayoutEffect(() => {
+    if (lastPill) {
+      const frame = requestAnimationFrame(() => requestAnimationFrame(resetPill))
+      return () => cancelAnimationFrame(frame)
+    }
     resetPill()
     document.fonts?.ready.then(resetPill)
   }, [current])
 
   return (
-    <header className={`site-header${solid ? ' solid' : ''}${hidden && !menuOpen ? ' hidden' : ''}`}>
+    <header
+      className={`site-header${solid ? ' solid' : ''}${hidden && !menuOpen ? ' hidden' : ''}`}
+      style={{ viewTransitionName: 'site-header' }}
+    >
       <a href="/" className="sh-chip sh-logo" aria-label="AI Agent Observatory home">
         <span className="sh-mark" aria-hidden="true"><i /><i /><i /><i /></span>
         Observatory <span className="dim">/ AI agents</span>

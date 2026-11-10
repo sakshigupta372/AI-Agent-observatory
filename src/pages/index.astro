@@ -1,7 +1,9 @@
 ---
+import PageTransitions from '../components/PageTransitions.astro'
+import { pageMotion } from '../data/pageMotion.js'
 import LandingPage from '../components/LandingPage.jsx'
 ---
-<html lang="en">
+<html lang="en" transition:animate={pageMotion}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -13,6 +15,7 @@ import LandingPage from '../components/LandingPage.jsx'
       name="description"
       content="Watch an AI agent plan, search, fact-check and retry, step by step. Every run is recorded and measured."
     />
+    <PageTransitions />
   </head>
   <body>
     <LandingPage client:load />

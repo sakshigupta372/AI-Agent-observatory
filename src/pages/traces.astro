@@ -1,7 +1,9 @@
 ---
+import PageTransitions from '../components/PageTransitions.astro'
+import { pageMotion } from '../data/pageMotion.js'
 import TracesPage from '../components/TracesPage.jsx'
 ---
-<html lang="en">
+<html lang="en" transition:animate={pageMotion}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -9,6 +11,7 @@ import TracesPage from '../components/TracesPage.jsx'
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <PageTransitions />
   </head>
   <body>
     <TracesPage client:only="react" />
