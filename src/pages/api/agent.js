@@ -718,6 +718,33 @@ async function planRetry({ query, reason, unsupported, sources, meter }) {
   }
 }
 
+// Compact per-step facts for the live narration; full detail stays in the stored trace.
+function stepSummary(output) {
+  if (!output || typeof output !== 'object') return null
+  const pick = {}
+  for (const key of ['hits', 'sourceCount', 'relevance', 'supported', 'via', 'chars', 'tool', 'usedModel']) {
+    if (output[key] !== undefined) pick[key] = output[key]
+  }
+  if (Array.isArray(output.unsupported)) pick.unsupported = output.unsupported.length
+  if (Array.isArray(output.rows)) pick.rows = output.rows.length
+  if (Array.isArray(output.verdicts)) pick.claims = output.verdicts.length
+  return pick
+}
+
+function stepEvent(phase, record) {
+  return {
+    type: 'step',
+    phase,
+    name: record.name,
+    kind: record.kind,
+    attempt: record.attempt,
+    status: record.status,
+    ms: phase === 'end' ? record.durationMs : null,
+    error: record.error ? String(record.error).slice(0, 220) : null,
+    summary: phase === 'end' ? stepSummary(record.output) : null,
+  }
+}
+
 const supportRate = (verdicts) => (verdicts.length ? verdicts.filter((item) => item.supported).length / verdicts.length : 1)
 
 export async function POST({ request, locals, clientAddress }) {
@@ -765,7 +792,7 @@ export async function POST({ request, locals, clientAddress }) {
   const inject = INJECTIONS.has(body?.inject) && plan.tool === 'web_search' ? body.inject : null
 
   return sse(async (send) => {
-    const tracer = createTracer({ query, config, injected: inject })
+    const tracer = createTracer({ query, config, injected: inject, onSpan: (phase, record) => send(stepEvent(phase, record)) })
     const { meter, span } = tracer
 
     const finish = async ({ status, error = null, response = null, sources = [], verdicts = [], retrieved = [], searchWindow = null, timings, attempts, replans }) => {

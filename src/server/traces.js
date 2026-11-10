@@ -48,7 +48,7 @@ export function addUsage(meter, usage) {
   meter.calls += 1
 }
 
-export function createTracer({ query: text, config, injected }) {
+export function createTracer({ query: text, config, injected, onSpan = null }) {
   const id = randomUUID()
   const origin = performance.now()
   const meter = createMeter()
@@ -73,6 +73,7 @@ export function createTracer({ query: text, config, injected }) {
       completionTokens: 0,
     }
     spans.push(record)
+    onSpan?.('start', record)
     try {
       const result = await fn(record)
       return result
@@ -85,6 +86,7 @@ export function createTracer({ query: text, config, injected }) {
       record.promptTokens = meter.promptTokens - before.prompt
       record.completionTokens = meter.completionTokens - before.completion
       if (record.output != null) record.output = clip(record.output)
+      onSpan?.('end', record)
     }
   }
 

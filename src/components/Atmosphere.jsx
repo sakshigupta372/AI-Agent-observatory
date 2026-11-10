@@ -13,7 +13,8 @@ export default function Atmosphere({ color }) {
   useFrame(() => {
     if (color) tint.current.set(color)
     else tint.current.copy(IDLE)
-    target.current.copy(IDLE).lerp(tint.current, color ? 0.28 : 0)
+    // A faint wash only: bright role colours (fact-check yellow) would otherwise flood the scene.
+    target.current.copy(IDLE).lerp(tint.current, color ? 0.09 : 0)
     current.current.lerp(target.current, 0.045)
     scene.background = current.current
     if (scene.fog) scene.fog.color.copy(current.current)

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-export default function ShareButton({ traceId, query, disabled, isOpen, onOpenChange }) {
+export default function ShareButton({ traceId, query, disabled, isOpen, onOpenChange, showButton = true }) {
   const [copied, setCopied] = useState(false)
 
   const generateShareUrl = () => {
@@ -69,7 +69,7 @@ export default function ShareButton({ traceId, query, disabled, isOpen, onOpenCh
 
   return (
     <>
-      <button
+      {showButton && <button
         type="button"
         className="share-button"
         onClick={handleShare}
@@ -77,14 +77,14 @@ export default function ShareButton({ traceId, query, disabled, isOpen, onOpenCh
         title="Share this run (S)"
       >
         🔗 Share
-      </button>
+      </button>}
 
       {isOpen && (
         <div className="share-modal-overlay" onClick={() => onOpenChange(false)}>
           <div className="share-modal" onClick={(e) => e.stopPropagation()}>
             <div className="share-header">
               <h3>Share This Run</h3>
-              <button onClick={() => onOpenChange(false)}>✕</button>
+              <button onClick={() => onOpenChange(false)} aria-label="Close share dialog">✕</button>
             </div>
 
             <div className="share-content">

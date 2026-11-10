@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 
 function parseAnswer(text) {
   const lines = String(text)
+    .replace(/\*\*(.+?)\*\*/g, '$1')
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean)
@@ -28,7 +29,7 @@ function verdictFor(point, verdicts) {
   return verdicts.find((verdict) => verdict.text === point || verdict.text.includes(point) || point.includes(verdict.text))
 }
 
-export default function ResponsePanel({ response, error, sources = [], asOf, verdicts = [] }) {
+export default function ResponsePanel({ response, error, sources = [], asOf, verdicts = [], embedded = false }) {
   const [closed, setClosed] = useState(false)
 
   useEffect(() => {
@@ -41,10 +42,12 @@ export default function ResponsePanel({ response, error, sources = [], asOf, ver
   const checked = asOf ? new Date(asOf).toLocaleString() : null
 
   return (
-    <div className={`response-card${error && !response ? ' error' : ''}`}>
-      <button className="response-close" onClick={() => setClosed(true)} aria-label="Dismiss response">
-        ×
-      </button>
+    <div className={`response-card${error && !response ? ' error' : ''}${embedded ? ' embedded' : ''}`}>
+      {!embedded && (
+        <button className="response-close" onClick={() => setClosed(true)} aria-label="Dismiss response">
+          ×
+        </button>
+      )}
       <span className="response-label">{error && !response ? 'COULD NOT ANSWER' : 'RESPONSE'}</span>
       {answer?.headline && <p className="response-headline">{answer.headline}</p>}
       {answer?.bullets.length > 0 && (

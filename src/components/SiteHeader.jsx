@@ -12,7 +12,8 @@ export const SITE_LINKS = [
 // Where the nav pill sat on the previous page; the module survives client-side navigation.
 let lastPill = null
 
-export default function SiteHeader({ current = '/' }) {
+// pinned: always solid and never hides on scroll (used over the full-screen observatory).
+export default function SiteHeader({ current = '/', pinned = false }) {
   const [solid, setSolid] = useState(false)
   const [hidden, setHidden] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -62,7 +63,7 @@ export default function SiteHeader({ current = '/' }) {
 
   return (
     <header
-      className={`site-header${solid ? ' solid' : ''}${hidden && !menuOpen ? ' hidden' : ''}`}
+      className={`site-header${solid || pinned ? ' solid' : ''}${hidden && !menuOpen && !pinned ? ' hidden' : ''}`}
       style={{ viewTransitionName: 'site-header' }}
     >
       <a href="/" className="sh-chip sh-logo" aria-label="AI Agent Observatory home">
