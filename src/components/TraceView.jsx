@@ -38,6 +38,7 @@ const INJECT_PLAIN = {
 }
 
 export const stepName = (name) => STEP_PLAIN[name] || name
+export const toolName = (tool) => STEP_PLAIN[`tool:${tool}`] || tool
 
 // One short paragraph a non-engineer can read before the detailed timeline.
 export function describeRun(trace) {

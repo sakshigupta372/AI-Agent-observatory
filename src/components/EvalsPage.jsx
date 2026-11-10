@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import DashNav from './DashNav.jsx'
+import SiteFooter from './SiteFooter.jsx'
 import { formatCost, formatMs } from './TraceView.jsx'
 import { EVAL_CONFIGS, EVAL_QUESTIONS, EVAL_TASKS } from '../data/evalSuite.js'
 import SuccessBars, { latestByConfig } from './SuccessBars.jsx'
@@ -18,12 +19,12 @@ function Questions() {
     <div className="card" style={{ marginBottom: 18 }}>
       <h2>Questions this project is built to answer</h2>
       <p className="hint">Each question raised about the agent maps to something you can run or measure here.</p>
-      <div className="grid-2">
+      <div className="q-grid">
         {EVAL_QUESTIONS.map((item) => (
-          <div key={item.id} style={{ padding: '10px 0', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-            <div style={{ color: '#e8eefc', fontSize: 13.5, marginBottom: 4 }}>{item.ask}</div>
-            <div className="muted" style={{ fontSize: 12.5, lineHeight: 1.55 }}>{item.answer}</div>
-            <div style={{ marginTop: 4, fontFamily: 'Consolas, monospace', fontSize: 11, color: '#7fd9ff' }}>{item.where}</div>
+          <div key={item.id} className="q-item">
+            <div className="q-ask">{item.ask}</div>
+            <div className="q-answer">{item.answer}</div>
+            <div className="q-where">{item.where}</div>
           </div>
         ))}
       </div>
@@ -110,8 +111,7 @@ function TaskTable({ runs }) {
       <select
         value={runId || ''}
         onChange={(e) => setRunId(Number(e.target.value))}
-        className="inject-select"
-        style={{ marginBottom: 12, color: '#cfe3ff', background: 'rgba(10,16,28,0.8)', borderColor: 'rgba(120,170,255,0.3)' }}
+        className="select"
       >
         {runs.map((run) => (
           <option key={run.id} value={run.id}>
@@ -136,7 +136,7 @@ function TaskTable({ runs }) {
           <tbody>
             {results.map((row, index) => (
               <tr key={`${row.taskId}-${index}`}>
-                <td>{row.traceId ? <a href={`/traces?id=${row.traceId}`} style={{ color: '#7fd9ff' }}>{row.taskId}</a> : row.taskId}</td>
+                <td>{row.traceId ? <a href={`/traces?id=${row.traceId}`}>{row.taskId}</a> : row.taskId}</td>
                 <td style={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.query}>
                   {row.injected && <span className="chip inject" style={{ marginRight: 6 }}>{row.injected}</span>}
                   {row.query}
@@ -229,8 +229,14 @@ export default function EvalsPage() {
   }, [])
 
   return (
+    <>
+      <DashNav
+        current="/evals"
+        kicker="Evaluations"
+        title={<>Measured,<br />not claimed</>}
+        subtitle="The same test questions run with and without fact-checking and retries, plus how fast memory search stays as data grows."
+      />
     <div className="dash">
-      <DashNav current="/evals" title="EVALUATION" subtitle="MEASURED RESULTS, NOT CLAIMS" />
       <Questions />
       {error && <div className="card bad" style={{ marginBottom: 18 }}>Could not load results: {error}</div>}
       {runs && runs.length === 0 && (
@@ -257,5 +263,7 @@ export default function EvalsPage() {
         </p>
       </div>
     </div>
+      <SiteFooter />
+    </>
   )
 }

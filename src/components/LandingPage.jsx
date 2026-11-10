@@ -1,11 +1,13 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import SuccessBars, { latestByConfig } from './SuccessBars.jsx'
+import SiteHeader from './SiteHeader.jsx'
+import SiteFooter from './SiteFooter.jsx'
+import { useLiveTotals } from '../hooks/useLiveTotals.js'
 import { DEMOS } from '../data/demos.js'
 import '../styles/landing.css'
 
 const Hero3D = lazy(() => import('./Hero3D.jsx'))
 
-const REPO = 'https://github.com/sakshigupta372/AI-Agent-observatory'
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 const pad = (n) => String(n).padStart(2, '0')
 
@@ -58,16 +60,12 @@ function CountUp({ value, suffix = '', duration = 1600 }) {
 
 function useLiveNumbers() {
   const [runs, setRuns] = useState(null)
-  const [totals, setTotals] = useState(null)
+  const { totals } = useLiveTotals()
   useEffect(() => {
     fetch('/api/evals')
       .then((res) => res.json())
       .then((data) => setRuns(data.runs || []))
       .catch(() => setRuns([]))
-    fetch('/api/traces?view=analytics')
-      .then((res) => res.json())
-      .then((data) => setTotals(data.analytics?.totals || null))
-      .catch(() => {})
   }, [])
   return { runs, totals }
 }
@@ -200,6 +198,7 @@ export default function LandingPage() {
 
   return (
     <div className="landing">
+      <SiteHeader current="/" />
       <section className="hero frame">
         <div className="hero-sky" aria-hidden="true" />
         {show3D && (
@@ -208,20 +207,6 @@ export default function LandingPage() {
           </Suspense>
         )}
 
-        <header className="frame-top hero-nav">
-          <a href="/" className="chip logo">
-            <span className="logo-mark" aria-hidden="true"><i /><i /><i /><i /></span>
-            OBSERVATORY <span className="dim">/ AI AGENTS</span>
-          </a>
-          <nav className="chips">
-            <a className="chip" href="/observatory">Observatory</a>
-            <a className="chip" href="/traces">Traces</a>
-            <a className="chip" href="/evals">Evaluations</a>
-            <a className="chip square" href={REPO} target="_blank" rel="noreferrer" aria-label="Source on GitHub">
-              <span className="burger"><i /><i /></span>
-            </a>
-          </nav>
-        </header>
 
         <div className="hero-copy">
           <h1>
@@ -387,11 +372,9 @@ export default function LandingPage() {
           Then watch it recover.
         </h2>
         <a className="btn solid" href="/observatory?demo">Start a demo <span>→</span></a>
-        <div className="frame-bar">
-          <span>BUILT BY SAKSHI GUPTA</span>
-          <a href={REPO} target="_blank" rel="noreferrer">SOURCE ON GITHUB →</a>
-        </div>
       </section>
+
+      <SiteFooter />
     </div>
   )
 }

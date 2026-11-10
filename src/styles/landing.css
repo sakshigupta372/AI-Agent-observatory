@@ -5,6 +5,7 @@ body {
 }
 
 .landing {
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
   --blue: #588bd0;
   --blue-deep: #4373ba;
   --sky: #b9d5f5;
@@ -232,30 +233,6 @@ body {
 
 .btn.dark:hover {
   background: var(--blue-deep);
-}
-
-/* glass orbs used as small illustrations */
-.orb {
-  display: block;
-  width: 56px;
-  height: 56px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background:
-    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.95) 0 7%, rgba(255, 255, 255, 0.35) 18%, transparent 40%),
-    radial-gradient(circle at 70% 78%, var(--c2), transparent 62%),
-    radial-gradient(circle at 50% 50%, var(--c1), var(--c2));
-  box-shadow: inset -6px -8px 16px rgba(0, 0, 0, 0.12), inset 4px 6px 12px rgba(255, 255, 255, 0.6), 0 10px 22px -10px var(--c2);
-  animation: hover 5s ease-in-out infinite;
-}
-
-.orb.o1 { --c1: #ece6ff; --c2: #a58ef0; }
-.orb.o2 { --c1: #e2fbf2; --c2: #5cc9a0; animation-delay: -1.2s; }
-.orb.o3 { --c1: #fff1e4; --c2: #f0a868; animation-delay: -2.4s; }
-.orb.o4 { --c1: #ffe7ef; --c2: #e9799c; animation-delay: -3.6s; }
-
-@keyframes hover {
-  50% { transform: translateY(-6px) rotate(8deg); }
 }
 
 [data-reveal] {
@@ -959,7 +936,7 @@ body {
 
 /* final */
 .final {
-  min-height: 520px;
+  min-height: 420px;
   color: #fff;
   text-align: center;
   display: flex;
