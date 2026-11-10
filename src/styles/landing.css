@@ -110,7 +110,6 @@
 }
 
 .hero h1 em {
-  display: block;
   color: var(--red);
   font-style: normal;
 }

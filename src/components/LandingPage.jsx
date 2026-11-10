@@ -360,15 +360,6 @@ export default function LandingPage() {
         </ul>
       </section>
 
-      <section className="final" data-reveal>
-        <h2>
-          Go break an agent.
-          <br />
-          Then watch it recover.
-        </h2>
-        <a className="btn solid" href="/observatory?demo">Start a demo →</a>
-      </section>
-
       <SiteFooter />
     </div>
   )
