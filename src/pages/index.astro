@@ -1,5 +1,6 @@
 ---
 import ObservatoryApp from '../components/ObservatoryApp.jsx'
+import '../styles/tailwind.css'
 import '../styles/global.css'
 ---
 <html lang="en">
@@ -10,16 +11,61 @@ import '../styles/global.css'
   </head>
   <body>
     <div class="app-root">
-      <div class="title-header">
-        <h1>AI AGENT OBSERVATORY</h1>
-        <span>AUTONOMOUS EXECUTION VISUALIZATION</span>
-      </div>
+      <header
+        class="fixed inset-x-0 top-0 z-30 flex h-14 items-center justify-between gap-4 border-b border-border/70 bg-gradient-to-b from-background/85 to-background/25 px-4 backdrop-blur-xl sm:px-6"
+      >
+        <!-- Brand -->
+        <a href="/" class="group flex items-center gap-3">
+          <span class="relative flex size-9 items-center justify-center">
+            <span
+              class="absolute inset-0 rounded-xl bg-primary/20 blur-md transition-opacity group-hover:opacity-100 opacity-70"
+            ></span>
+            <svg
+              class="relative size-9 text-primary drop-shadow-[0_0_8px_var(--primary)]"
+              viewBox="0 0 36 36"
+              fill="none"
+              aria-hidden="true"
+            >
+              <circle cx="18" cy="18" r="13" stroke="currentColor" stroke-opacity="0.35" stroke-width="1.5" />
+              <ellipse cx="18" cy="18" rx="13" ry="5" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.5" />
+              <circle cx="18" cy="18" r="3.4" fill="currentColor" />
+              <circle cx="29" cy="13" r="1.8" fill="currentColor" />
+            </svg>
+          </span>
+          <span class="flex flex-col leading-none">
+            <span class="text-[15px] font-semibold tracking-tight text-foreground">
+              AI Agent Observatory
+            </span>
+            <span class="mt-0.5 text-[11px] font-medium tracking-wide text-muted-foreground">
+              Observe · Diagnose · Evaluate
+            </span>
+          </span>
+        </a>
 
-      <nav class="site-nav">
-        <a class="current" href="/">Observatory</a>
-        <a href="/traces">Traces</a>
-        <a href="/evals">Evaluations</a>
-      </nav>
+        <!-- Nav tabs -->
+        <nav class="absolute right-4 top-1/2 flex -translate-y-1/2 items-center gap-1 rounded-full border border-border bg-card/70 p-1 shadow-lg shadow-black/20 backdrop-blur-xl sm:right-6">
+          <a
+            href="/"
+            aria-current="page"
+            class="rounded-full bg-primary/15 px-3.5 py-1.5 text-sm font-medium text-primary ring-1 ring-inset ring-primary/25 transition-colors"
+          >
+            Observatory
+          </a>
+          <a
+            href="/traces"
+            class="rounded-full px-3.5 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+          >
+            Traces
+          </a>
+          <a
+            href="/evals"
+            class="rounded-full px-3.5 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+          >
+            Evals
+          </a>
+        </nav>
+      </header>
+
       <ObservatoryApp client:only="react" />
     </div>
   </body>
