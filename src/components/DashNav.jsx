@@ -1,6 +1,7 @@
 export default function DashNav({ current, title, subtitle }) {
   const links = [
-    ['/', 'Observatory'],
+    ['/', 'Home'],
+    ['/observatory', 'Observatory'],
     ['/traces', 'Traces'],
     ['/evals', 'Evaluations'],
   ]

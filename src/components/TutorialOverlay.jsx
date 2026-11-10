@@ -52,14 +52,14 @@ const TUTORIAL_STEPS = [
   }
 ]
 
-export default function TutorialOverlay({ onComplete }) {
+export default function TutorialOverlay({ onComplete, suppressed = false }) {
   const [step, setStep] = useState(0)
   const [show, setShow] = useState(false)
 
   useEffect(() => {
     // Check if user has seen tutorial
     const hasSeenTutorial = localStorage.getItem('observatory_tutorial_seen')
-    if (!hasSeenTutorial) {
+    if (!hasSeenTutorial && !suppressed) {
       setTimeout(() => setShow(true), 1000)
     }
   }, [])

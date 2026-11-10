@@ -5,7 +5,7 @@ export default function ShareButton({ traceId, query, disabled, isOpen, onOpenCh
 
   const generateShareUrl = () => {
     const baseUrl = window.location.origin
-    return `${baseUrl}/?trace=${traceId}`
+    return `${baseUrl}/traces?id=${traceId}`
   }
 
   const handleShare = () => {

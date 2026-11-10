@@ -22,6 +22,8 @@ import Shockwave from './Shockwave.jsx'
 import TutorialOverlay from './TutorialOverlay.jsx'
 import QueryHistory from './QueryHistory.jsx'
 import ShareButton from './ShareButton.jsx'
+import GuidedDemo from './GuidedDemo.jsx'
+import { demoById } from '../data/demos.js'
 import { useKeyboardShortcuts, KeyboardShortcutsHelp } from '../hooks/useKeyboardShortcuts.jsx'
 import { useAgentExecution } from '../hooks/useAgentExecution.js'
 import { useQueryHistory } from '../hooks/useQueryHistory.js'
@@ -87,6 +89,9 @@ export default function AgentScene() {
   const [shareOpen, setShareOpen] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [prefill, setPrefill] = useState(null)
+  const [demoParam, setDemoParam] = useState(() => new URLSearchParams(window.location.search).get('demo'))
+  const [details, setDetails] = useState(() => localStorage.getItem('observatory_details') === '1')
+  const demoOpen = demoParam !== null
   const lastPacketKey = useRef(null)
   const replayLock = useRef(false)
   const controlsRef = useRef(null)
@@ -250,8 +255,23 @@ export default function AgentScene() {
     enabled: !inspectOpen // Disable when inspector is open
   })
 
+  const toggleDetails = () => {
+    setDetails((on) => {
+      localStorage.setItem('observatory_details', on ? '0' : '1')
+      return !on
+    })
+  }
+
+  const setDemo = (id) => {
+    const url = new URL(window.location.href)
+    if (id === undefined) url.searchParams.delete('demo')
+    else url.searchParams.set('demo', id || '')
+    window.history.replaceState(null, '', url)
+    setDemoParam(id === undefined ? null : id || '')
+  }
+
   return (
-    <div className={`canvas-wrap${exec.running ? ' cinematic' : ''}`}>
+    <div className={`canvas-wrap${exec.running ? ' cinematic' : ''}${details ? ' details' : ''}`}>
       <Canvas camera={{ position: [0, 3, 14], fov: 50 }} gl={{ antialias: true, preserveDrawingBuffer: true }}>
         <color attach="background" args={['#05070d']} />
         <fog attach="fog" args={['#05070d', 12, 34]} />
@@ -409,9 +429,31 @@ export default function AgentScene() {
         </div>
       )}
 
-      {displayed && <InfoPanel node={displayed} />}
+      {displayed && !demoOpen && <InfoPanel node={displayed} />}
 
-      {exec.memoryStats && <MemoryStatsPanel stats={exec.memoryStats} />}
+      {details && exec.memoryStats && <MemoryStatsPanel stats={exec.memoryStats} />}
+
+      {demoOpen && (
+        <GuidedDemo
+          demo={demoById(demoParam)}
+          exec={exec}
+          onPick={(id) => setDemo(id)}
+          onClose={() => setDemo(undefined)}
+          onInspect={() => exec.runTrace && setInspectOpen(true)}
+        />
+      )}
+
+      <div className="view-toggle">
+        <button type="button" onClick={toggleDetails} title="Show or hide the live event log and memory stats">
+          {details ? 'Simple view' : 'Show technical details'}
+        </button>
+        {!details && exec.runTrace && !exec.running && (
+          <button type="button" onClick={() => setInspectOpen(true)}>Inspect run</button>
+        )}
+        {!demoOpen && (
+          <button type="button" onClick={() => setDemo(null)}>Break it yourself</button>
+        )}
+      </div>
 
       <RunConsole
         running={exec.running}
@@ -438,16 +480,18 @@ export default function AgentScene() {
         verdicts={exec.verdicts}
       />
 
-      <TracePanel
-        trace={exec.trace}
-        running={exec.running}
-        canInspect={Boolean(exec.runTrace) && !exec.running}
-        onInspect={() => setInspectOpen(true)}
-      />
+      {details && (
+        <TracePanel
+          trace={exec.trace}
+          running={exec.running}
+          canInspect={Boolean(exec.runTrace) && !exec.running}
+          onInspect={() => setInspectOpen(true)}
+        />
+      )}
 
       {inspectOpen && exec.runTrace && <SpanInspector trace={exec.runTrace} onClose={() => setInspectOpen(false)} />}
 
-      <TutorialOverlay />
+      <TutorialOverlay suppressed={demoOpen} />
 
       <QueryHistory
         history={history}

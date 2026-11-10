@@ -1,0 +1,56 @@
+.success-bars {
+  display: grid;
+  gap: 18px;
+}
+
+.success-bar-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 14px;
+  color: #c9d6e6;
+  margin-bottom: 6px;
+}
+
+.success-bar-label b {
+  font-size: 22px;
+  color: #eaf6ff;
+  font-variant-numeric: tabular-nums;
+}
+
+.success-bar-track {
+  height: 14px;
+  border-radius: 7px;
+  background: rgba(127, 217, 255, 0.08);
+  overflow: hidden;
+}
+
+.success-bar-track span {
+  display: block;
+  height: 100%;
+  border-radius: 7px;
+  background: #5b7088;
+  transition: width 0.8s ease;
+}
+
+.success-bar.verify .success-bar-track span {
+  background: #4fa8d1;
+}
+
+.success-bar.replan .success-bar-track span {
+  background: linear-gradient(90deg, #4fd1a5, #7fd9ff);
+}
+
+.success-bar-note {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #7f91a8;
+}
+
+.success-bars.compact {
+  gap: 12px;
+}
+
+.success-bars.compact .success-bar-label b {
+  font-size: 18px;
+}

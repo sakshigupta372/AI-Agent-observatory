@@ -175,3 +175,25 @@
   font-size: 10.5px;
   line-height: 1.55;
 }
+
+.tv-plain {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border-left: 3px solid #4fd1a5;
+  background: rgba(79, 209, 165, 0.06);
+  color: #dfe9f5;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.tv-plain.degraded {
+  border-left-color: #ffc45c;
+  background: rgba(255, 196, 92, 0.06);
+}
+
+.tv-plain.failed {
+  border-left-color: #ff6b86;
+  background: rgba(255, 107, 134, 0.06);
+}

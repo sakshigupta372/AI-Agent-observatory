@@ -41,9 +41,10 @@ function datedQuery(query) {
 const RETRY_STATUS = new Set([429, 500, 502, 503, 529])
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
-// Groq asks callers to back off exponentially on 429/503, so one slow
-// retry is better than surfacing a capacity blip as a failed run.
-async function groqFetch(body, attempts = 3) {
+// Groq asks callers to back off exponentially on 429/503 and usually says how
+// long to wait, so a few patient retries beat surfacing a capacity blip as a
+// degraded run.
+async function groqFetch(body, attempts = 5) {
   if (!GROQ_API_KEY) throw new Error('GROQ_API_KEY is not set')
   let lastDetail = ''
   let lastStatus = 0
@@ -56,13 +57,15 @@ async function groqFetch(body, attempts = 3) {
         Authorization: `Bearer ${GROQ_API_KEY}`,
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(body.stream ? 60_000 : 30_000),
     })
     if (res.ok) return res
 
     lastStatus = res.status
     lastDetail = await res.text()
     if (!RETRY_STATUS.has(res.status) || attempt === attempts - 1) break
-    await sleep(600 * 2 ** attempt)
+    const retryAfter = Number(res.headers.get('retry-after'))
+    await sleep(Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter * 1000, 8000) : 1000 * 2 ** attempt)
   }
 
   const capacity = lastStatus === 503 || lastStatus === 429

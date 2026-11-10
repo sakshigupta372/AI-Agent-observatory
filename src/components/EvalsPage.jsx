@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import DashNav from './DashNav.jsx'
 import { formatCost, formatMs } from './TraceView.jsx'
 import { EVAL_CONFIGS, EVAL_QUESTIONS, EVAL_TASKS } from '../data/evalSuite.js'
+import SuccessBars, { latestByConfig } from './SuccessBars.jsx'
 import '../styles/dashboard.css'
 
 const pct = (n, d) => (d ? `${Math.round((n / d) * 100)}%` : '–')
@@ -31,14 +32,7 @@ function Questions() {
 }
 
 function Comparison({ runs }) {
-  const latest = useMemo(() => {
-    const byConfig = new Map()
-    for (const run of runs) {
-      const id = run.config?.id
-      if (id && !byConfig.has(id)) byConfig.set(id, run)
-    }
-    return EVAL_CONFIGS.map((item) => ({ item, run: byConfig.get(item.id) }))
-  }, [runs])
+  const latest = useMemo(() => latestByConfig(runs), [runs])
 
   const rows = [
     ['Tasks run', (r) => r.tasks, null],
@@ -62,6 +56,9 @@ function Comparison({ runs }) {
         reference facts and none of the forbidden ones. "Injected" rows only count the {EVAL_TASKS.filter((t) => t.inject).length} tasks
         where a failure was planted on purpose.
       </p>
+      <div style={{ maxWidth: 560, margin: '16px 0 22px' }}>
+        <SuccessBars runs={runs} />
+      </div>
       <table className="table">
         <thead>
           <tr>

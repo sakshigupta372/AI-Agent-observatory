@@ -1490,3 +1490,254 @@ body {
     flex-direction: column;
   }
 }
+
+/* guided "break it yourself" demo */
+.guided-demo {
+  position: absolute;
+  top: 72px;
+  left: 24px;
+  width: 330px;
+  max-height: calc(100vh - 200px);
+  overflow: auto;
+  z-index: 7;
+  padding: 16px 18px;
+  background: rgba(10, 16, 28, 0.82);
+  border: 1px solid rgba(255, 122, 138, 0.35);
+  border-radius: 14px;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  color: #dfe9f5;
+  font-size: 13px;
+  line-height: 1.5;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.guided-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  letter-spacing: 1.4px;
+  color: #ff7a8a;
+  margin-bottom: 10px;
+}
+
+.guided-head button {
+  background: none;
+  border: none;
+  color: #7f8fb5;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.guided-intro {
+  margin: 0 0 12px;
+  color: #aebbd0;
+}
+
+.guided-picks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.guided-picks button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 122, 138, 0.25);
+  background: rgba(255, 122, 138, 0.06);
+  color: #f1f7ff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.guided-picks button:hover {
+  border-color: #ff7a8a;
+}
+
+.guided-picks span {
+  font-size: 20px;
+}
+
+.guided-steps {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.guided-steps li {
+  position: relative;
+  padding: 8px 10px 8px 30px;
+  border-radius: 10px;
+  border: 1px solid rgba(127, 217, 255, 0.08);
+  opacity: 0.55;
+  transition: all 0.3s;
+}
+
+.guided-steps li::before {
+  content: '○';
+  position: absolute;
+  left: 10px;
+  top: 8px;
+  color: #5b7088;
+}
+
+.guided-steps li b {
+  display: block;
+  color: #f1f7ff;
+  font-size: 13px;
+}
+
+.guided-steps li span {
+  color: #9fb0c6;
+  font-size: 12px;
+}
+
+.guided-steps li.done {
+  opacity: 0.85;
+}
+
+.guided-steps li.done::before {
+  content: '✓';
+  color: #4fd1a5;
+}
+
+.guided-steps li.live {
+  opacity: 1;
+  border-color: rgba(127, 217, 255, 0.45);
+  background: rgba(127, 217, 255, 0.08);
+}
+
+.guided-steps li.live::before {
+  content: '●';
+  color: #7fd9ff;
+  animation: pulse 1s ease-in-out infinite alternate;
+}
+
+.guided-steps li.skipped::before {
+  content: '–';
+}
+
+.guided-start,
+.guided-actions button {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(127, 217, 255, 0.35);
+  background: rgba(127, 217, 255, 0.1);
+  color: #7fd9ff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.guided-start {
+  width: 100%;
+  background: #7fd9ff;
+  color: #04121c;
+}
+
+.guided-start:disabled,
+.guided-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.guided-live {
+  color: #7fd9ff;
+  font-size: 12px;
+}
+
+.guided-result {
+  padding: 10px 12px;
+  border-radius: 10px;
+  display: grid;
+  gap: 4px;
+}
+
+.guided-result.ok {
+  border: 1px solid rgba(79, 209, 165, 0.45);
+  background: rgba(79, 209, 165, 0.08);
+}
+
+.guided-result.ok b {
+  color: #4fd1a5;
+}
+
+.guided-result.bad {
+  border: 1px solid rgba(255, 196, 92, 0.45);
+  background: rgba(255, 196, 92, 0.07);
+}
+
+.guided-result.bad b {
+  color: #ffc45c;
+}
+
+.guided-result span {
+  color: #c9d6e6;
+  font-size: 12px;
+}
+
+.guided-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.guided-actions button {
+  font-size: 12px;
+  padding: 6px 10px;
+}
+
+@keyframes pulse {
+  from {
+    opacity: 0.4;
+  }
+}
+
+/* simple / technical view toggle */
+.view-toggle {
+  position: absolute;
+  left: 24px;
+  bottom: 24px;
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.view-toggle button {
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(120, 170, 255, 0.25);
+  background: rgba(10, 16, 28, 0.6);
+  color: #b4c4e8;
+  font-size: 12px;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+}
+
+.view-toggle button:hover {
+  color: #fff;
+  border-color: #7fd9ff;
+}
+
+.canvas-wrap.details .memory-panel {
+  bottom: 120px;
+}
+
+@media (max-width: 900px) {
+  .guided-demo {
+    top: auto;
+    bottom: 200px;
+    width: calc(100vw - 48px);
+    max-height: 45vh;
+  }
+}

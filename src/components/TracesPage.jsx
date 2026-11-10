@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import DashNav from './DashNav.jsx'
-import TraceView, { formatCost, formatMs } from './TraceView.jsx'
+import TraceView, { STATUS_PLAIN, formatCost, formatMs, stepName } from './TraceView.jsx'
 import '../styles/dashboard.css'
 
 function Analytics({ data }) {
@@ -17,7 +17,7 @@ function Analytics({ data }) {
         <div className="stat"><b>{formatMs(totals.p95_ms)}</b><span>p95 run time</span></div>
         <div className="stat"><b>{(totals.prompt_tokens + totals.completion_tokens).toLocaleString()}</b><span>tokens used</span></div>
         <div className="stat"><b>{formatCost(totals.cost)}</b><span>estimated model cost</span></div>
-        <div className="stat"><b>{totals.replans}</b><span>replans triggered</span></div>
+        <div className="stat"><b>{totals.replans}</b><span>retries triggered</span></div>
       </div>
       <div className="grid-2">
         <div className="card">
@@ -30,7 +30,7 @@ function Analytics({ data }) {
             <tbody>
               {stages.map((row) => (
                 <tr key={row.name}>
-                  <td>{row.name}</td>
+                  <td title={row.name}>{stepName(row.name)}</td>
                   <td className="num">{row.calls}</td>
                   <td><div className="bar-cell"><span style={{ width: `${(row.avg_ms / maxAvg) * 100}%` }} /></div></td>
                   <td className="num">{formatMs(row.avg_ms)}</td>
@@ -119,11 +119,11 @@ export default function TracesPage() {
               <button key={trace.id} type="button" className={`run-item${selected === trace.id ? ' active' : ''}`} onClick={() => setSelected(trace.id)}>
                 <span className="q">{trace.query}</span>
                 <span className="meta">
-                  <span><i className={`dot ${trace.status}`} />{trace.status}</span>
+                  <span><i className={`dot ${trace.status}`} />{STATUS_PLAIN[trace.status] || trace.status}</span>
                   <span>{trace.tool || '–'}</span>
                   <span>{formatMs(trace.totalMs)}</span>
-                  {trace.replans > 0 && <span className="chip">{trace.replans} replan</span>}
-                  {trace.injected && <span className="chip inject">{trace.injected}</span>}
+                  {trace.replans > 0 && <span className="chip">retried {trace.replans}×</span>}
+                  {trace.injected && <span className="chip inject">planted: {trace.injected.replace('_', ' ')}</span>}
                   {trace.fromEval && <span className="chip">eval</span>}
                 </span>
               </button>
