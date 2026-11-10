@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { parseAnswer } from '../data/parseAnswer.js'
 
 function formatTime(timestamp) {
   const date = new Date(timestamp)
@@ -22,13 +23,27 @@ function getToolIcon(tool) {
   return icons[tool] || '❓'
 }
 
-const PREVIEW_CHARS = 180
+const PREVIEW_POINTS = 3
 
-// Answers are stored as markdown; the preview shows plain text, cut at a word.
-function preview(result) {
-  const text = String(result).replace(/\*\*|`/g, '').replace(/\s+/g, ' ').trim()
-  if (text.length <= PREVIEW_CHARS) return text
-  return `${text.slice(0, PREVIEW_CHARS).replace(/\s+\S*$/, '')}…`
+function AnswerPreview({ result }) {
+  const { headline, bullets } = parseAnswer(String(result).replace(/`/g, ''))
+  const shown = bullets.slice(0, PREVIEW_POINTS)
+  const more = bullets.length - shown.length
+  return (
+    <div className="history-result">
+      {headline && <p className="history-headline">{headline}</p>}
+      {shown.length > 0 && (
+        <ul className="history-points">
+          {shown.map((point, index) => (
+            <li key={index}>
+              <span>{point}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {more > 0 && <span className="history-more">+{more} more {more === 1 ? 'point' : 'points'}</span>}
+    </div>
+  )
 }
 
 export default function QueryHistory({ history, isOpen, onToggle, onClear, onSelectQuery, currentQuery, showToggle = true }) {
@@ -94,7 +109,7 @@ export default function QueryHistory({ history, isOpen, onToggle, onClear, onSel
                   <span className="history-time">{formatTime(entry.timestamp)}</span>
                 </div>
                 <div className="history-query">{entry.query}</div>
-                {entry.result && <div className="history-result">{preview(entry.result)}</div>}
+                {entry.result && <AnswerPreview result={entry.result} />}
               </div>
             ))
           )}
