@@ -64,12 +64,11 @@ const DEFAULT_SCENARIO = {
   tasks: ['Understand request', 'Gather information', 'Generate summary'],
 }
 
-export const EXAMPLE_PROMPTS = [
-  'Find AI Engineer jobs in Bangalore',
-  'Calculate the ROI of this investment',
-  'Search the web for the latest AI news',
-  'Find information about this customer',
-  'Analyze this document',
+// The chips under the question box: a short label that runs the full prompt.
+export const EXAMPLE_CHIPS = [
+  { label: 'Latest AI news', prompt: 'Search the web for the latest AI news' },
+  { label: 'AI jobs in Bangalore', prompt: 'Find AI Engineer jobs in Bangalore' },
+  { label: 'ROI of an investment', prompt: 'Calculate the ROI of this investment' },
 ]
 
 export function classify(query) {

@@ -1,3 +1,4 @@
+import { toolName } from './labels.js'
 // Plain-English narration for the live run, derived only from the step
 // events /api/agent streams (see stepEvent there). Nothing here is guessed.
 
@@ -8,14 +9,7 @@ const TOOL_ACTION = {
   external_api: 'Reading the text you provided…',
 }
 
-const TOOL_NAME = {
-  web_search: 'Web search',
-  database: 'Customer database',
-  calculator: 'Calculator',
-  external_api: 'Text analysis',
-}
-
-export const toolPlainName = (tool) => TOOL_NAME[tool] || tool
+export const toolPlainName = toolName
 
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`
 

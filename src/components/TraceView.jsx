@@ -1,5 +1,8 @@
 import { useState } from 'react'
 import '../styles/traceview.css'
+import { stepName, toolName } from '../data/labels.js'
+
+export { stepName, toolName }
 
 const KIND_COLOR = {
   planner: '#a78bff',
@@ -10,18 +13,6 @@ const KIND_COLOR = {
 }
 
 export const STATUS_PLAIN = { ok: 'answered', degraded: 'answered with fallback', failed: 'failed' }
-
-const STEP_PLAIN = {
-  plan: 'Plan',
-  memory_retrieval: 'Memory lookup',
-  reasoning: 'Write answer',
-  verification: 'Fact-check',
-  replan: 'Retry plan',
-  'tool:web_search': 'Web search',
-  'tool:calculator': 'Calculator',
-  'tool:database': 'Customer database',
-  'tool:external_api': 'Text analysis',
-}
 
 const TOOL_PLAIN = {
   web_search: 'web search',
@@ -37,8 +28,6 @@ const INJECT_PLAIN = {
   tool_timeout: 'a tool timeout',
 }
 
-export const stepName = (name) => STEP_PLAIN[name] || name
-export const toolName = (tool) => STEP_PLAIN[`tool:${tool}`] || tool
 
 // One short paragraph a non-engineer can read before the detailed timeline.
 export function describeRun(trace) {

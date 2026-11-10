@@ -29,7 +29,6 @@ const BASE_NODES = [
   {
     id: 'intent',
     label: 'INTENT DETECTION',
-    short: 'INTENT',
     position: [-4, 0.6, 5.2],
     role: 'input',
     description: 'Classifies what the user actually wants — the task type behind the words.',
@@ -66,7 +65,6 @@ const BASE_NODES = [
   {
     id: 'llm',
     label: 'LLM / REASONING ENGINE',
-    short: 'LLM',
     position: [4.4, 1.8, -0.4],
     role: 'reasoning',
     description: 'The core model that reasons over assembled context to produce a decision or answer.',
@@ -99,7 +97,6 @@ export const TOOLS = [
   {
     id: 'web_search',
     label: 'WEB SEARCH',
-    short: 'WEB',
     parent: 'toolhub',
     position: [4.6, -2.4, 7.4],
     role: 'tools',
@@ -124,7 +121,6 @@ export const TOOLS = [
   {
     id: 'external_api',
     label: 'EXTERNAL API',
-    short: 'TEXT API',
     parent: 'toolhub',
     position: [0.2, -3.2, 3.6],
     role: 'tools',

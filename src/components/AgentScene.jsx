@@ -26,6 +26,7 @@ import LabelDeconflict from './LabelDeconflict.jsx'
 import RunNarration from './RunNarration.jsx'
 import SiteHeader from './SiteHeader.jsx'
 import { demoById } from '../data/demos.js'
+import { nodeLabel } from '../data/labels.js'
 import { useKeyboardShortcuts, KeyboardShortcutsHelp } from '../hooks/useKeyboardShortcuts.jsx'
 import { useAgentExecution } from '../hooks/useAgentExecution.js'
 import { useQueryHistory } from '../hooks/useQueryHistory.js'
@@ -43,7 +44,6 @@ import {
 const nodeById = Object.fromEntries(NODES.map((n) => [n.id, n]))
 const toolById = Object.fromEntries(TOOLS.map((t) => [t.id, t]))
 const positionOf = (id) => (nodeById[id] ?? toolById[id])?.position
-const labelOf = (id) => (nodeById[id] ?? toolById[id])?.label ?? id
 
 const offsetBy = (p, dx, dy, dz = 0) => [p[0] + dx, p[1] + dy, p[2] + dz]
 
@@ -76,22 +76,22 @@ function focusIdFrom(exec) {
   return null
 }
 
-function edgeInfo(a, b) {
+function edgeInfo(a, b, mode) {
   return {
     id: `${a}-${b}`,
-    label: `${labelOf(a)} → ${labelOf(b)}`,
+    label: `${nodeLabel(a, mode).text} → ${nodeLabel(b, mode).text}`,
     status: 'LINK',
     description: 'Packets travel this path while that stage of the agent is running.',
     tech: `${a} → ${b}`,
   }
 }
 
-// Only the fact-check support rate is measured; the server's other confidence
+// Only the fact-check result is measured; the server's other confidence
 // numbers are fixed heuristics, so they are not shown on the map.
 function scoreFor(id, exec) {
-  if (!exec.confidence || !exec.verdicts?.length) return null
-  if (id === 'verifier' || id === 'response') return exec.confidence.verifier
-  return null
+  const verdicts = exec.verdicts || []
+  if (!verdicts.length || (id !== 'verifier' && id !== 'response')) return null
+  return `${verdicts.filter((item) => item.supported).length}/${verdicts.length}`
 }
 
 function escapeHtml(value) {
@@ -288,13 +288,6 @@ export default function AgentScene() {
     enabled: !inspectOpen,
   })
 
-  const toggleDetails = () => {
-    setDetails((on) => {
-      localStorage.setItem('observatory_details', on ? '0' : '1')
-      return !on
-    })
-  }
-
   const toggleFollow = () => {
     setFollow((on) => {
       localStorage.setItem('observatory_follow', on ? '0' : '1')
@@ -311,6 +304,11 @@ export default function AgentScene() {
   }
 
   const dimmedFor = (id) => Boolean(highlighting && focusId !== id)
+  const mode = details ? 'technical' : 'simple'
+  const setMode = (next) => {
+    localStorage.setItem('observatory_details', next === 'technical' ? '1' : '0')
+    setDetails(next === 'technical')
+  }
 
   return (
     <div className={`obs-app${details ? ' details' : ''}`}>
@@ -346,7 +344,7 @@ export default function AgentScene() {
                 reducedMotion={reducedMotion}
                 active={connectionActive(a, b, view.activeConnection)}
                 dimmed={highlighting && !connectionActive(a, b, view.activeConnection)}
-                onHover={(over) => setHovered(over ? edgeInfo(a, b) : null)}
+                onHover={(over) => setHovered(over ? edgeInfo(a, b, mode) : null)}
               />
             ))}
 
@@ -362,7 +360,7 @@ export default function AgentScene() {
                     over
                       ? {
                           id: 'feedback-edge',
-                          label: 'VERIFIER → PLANNER',
+                          label: `${nodeLabel('verifier', mode).text} → ${nodeLabel('planner', mode).text}`,
                           status: 'FEEDBACK',
                           description: `The verifier rejected claims and sent the failure back to the planner ${exec.feedbackCount} time(s) in this run.`,
                           tech: 'Only drawn when a replan actually happened. Retry limit: 2.',
@@ -383,7 +381,7 @@ export default function AgentScene() {
                 reducedMotion={reducedMotion}
                 active={connectionActive(a, b, view.activeConnection)}
                 dimmed={highlighting && !connectionActive(a, b, view.activeConnection)}
-                onHover={(over) => setHovered(over ? edgeInfo(a, b) : null)}
+                onHover={(over) => setHovered(over ? edgeInfo(a, b, mode) : null)}
               />
             ))}
 
@@ -430,6 +428,8 @@ export default function AgentScene() {
               <AgentNode
                 key={node.id}
                 node={node}
+                label={nodeLabel(node.id, mode).text}
+                short={nodeLabel(node.id, mode).short}
                 active={view.activeNodeId === node.id}
                 dimmed={dimmedFor(node.id)}
                 confidence={scoreFor(node.id, exec)}
@@ -444,6 +444,8 @@ export default function AgentScene() {
               <ToolNode
                 key={tool.id}
                 tool={tool}
+                label={nodeLabel(tool.id, mode).text}
+                short={nodeLabel(tool.id, mode).short}
                 active={view.activeTool === tool.id}
                 dimmed={dimmedFor(tool.id)}
                 selected={selected?.id === tool.id}
@@ -541,18 +543,21 @@ export default function AgentScene() {
             canExport={Boolean(exec.response || exec.error)}
             inputRef={queryInputRef}
             prefillQuery={prefill}
-          />
-          <div className="view-toggle">
-            <button type="button" onClick={toggleDetails} aria-pressed={details} title="Show or hide the live event log and memory stats">
-              {details ? 'Simple view' : 'Show technical details'}
-            </button>
+            onBreakIt={demoOpen ? undefined : () => setDemo(null)}
+          >
+            <div className="mode-toggle" role="group" aria-label="Names and detail level" title="Technical shows engineering names, the live event log and memory stats">
+              {['simple', 'technical'].map((option) => (
+                <button key={option} type="button" aria-pressed={mode === option} onClick={() => setMode(option)}>
+                  {option === 'simple' ? 'Simple' : 'Technical'}
+                </button>
+              ))}
+            </div>
             {exec.runTrace && !exec.running && (
-              <button type="button" onClick={() => setInspectOpen(true)}>Inspect run</button>
+              <button type="button" className="btn-ghost" onClick={() => setInspectOpen(true)}>
+                Inspect run
+              </button>
             )}
-            {!demoOpen && (
-              <button type="button" onClick={() => setDemo(null)}>Break it yourself</button>
-            )}
-          </div>
+          </RunConsole>
         </div>
       </main>
 

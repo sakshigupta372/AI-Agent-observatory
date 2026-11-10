@@ -10,7 +10,7 @@ const MEMORY_LABEL_OFFSET = [0, 1.85, 0]
 // A single holographic "core" representing one component of the agent
 // pipeline. Built from a faceted icosahedron shell + inner glowing core +
 // a rotating ring, so it reads as a machine rather than a plain sphere.
-export default function AgentNode({ node, label, active, dimmed, confidence, onHover, onSelect, selected, reducedMotion = false }) {
+export default function AgentNode({ node, label, short, active, dimmed, confidence, onHover, onSelect, selected, reducedMotion = false }) {
   const group = useRef()
   const ring = useRef()
   const shell = useRef()
@@ -86,7 +86,7 @@ export default function AgentNode({ node, label, active, dimmed, confidence, onH
 
       <NodeLabel
         text={label ?? node.label}
-        short={node.short}
+        short={short}
         offset={node.id === 'memory' ? MEMORY_LABEL_OFFSET : LABEL_OFFSET}
         state={labelState}
         score={confidence}
