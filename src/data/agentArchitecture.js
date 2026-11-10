@@ -5,13 +5,13 @@
 // One colour per role; nodes take their colour from their role so the
 // legend is always accurate. Red is reserved for the retry edge and failures.
 export const ROLES = [
-  { id: 'input', label: 'Input', hint: 'Your question and what it is asking for', color: '#6ea8ff' },
-  { id: 'planning', label: 'Planning', hint: 'Decides the steps and which tool to use', color: '#a78bff' },
-  { id: 'memory', label: 'Memory', hint: 'Answers from earlier runs (pgvector)', color: '#ff8fd0' },
-  { id: 'tools', label: 'Tools', hint: 'Web search, database, calculator, text analysis', color: '#ffb168' },
-  { id: 'reasoning', label: 'Reasoning', hint: 'The language model writes the answer', color: '#5ee6c8' },
-  { id: 'verification', label: 'Fact-check', hint: 'Checks every claim against the sources', color: '#ffe27a' },
-  { id: 'output', label: 'Output', hint: 'The final answer', color: '#9fe870' },
+  { id: 'input', label: 'Input', hint: 'Your question and what it is asking for', color: '#efe6d6' },
+  { id: 'planning', label: 'Planning', hint: 'Decides the steps and which tool to use', color: '#e6b450' },
+  { id: 'memory', label: 'Memory', hint: 'Answers from earlier runs (pgvector)', color: '#c3a6d8' },
+  { id: 'tools', label: 'Tools', hint: 'Web search, database, calculator, text analysis', color: '#e8925a' },
+  { id: 'reasoning', label: 'Reasoning', hint: 'The language model writes the answer', color: '#8fc7b5' },
+  { id: 'verification', label: 'Fact-check', hint: 'Checks every claim against the sources', color: '#a9bfe3' },
+  { id: 'output', label: 'Output', hint: 'The final answer', color: '#7cc495' },
 ]
 
 export const ROLE_COLOR = Object.fromEntries(ROLES.map((role) => [role.id, role.color]))

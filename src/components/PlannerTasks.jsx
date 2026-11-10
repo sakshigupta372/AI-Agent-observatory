@@ -3,9 +3,9 @@ import { useFrame } from '@react-three/fiber'
 import { Text, Billboard, Line } from '@react-three/drei'
 import * as THREE from 'three'
 
-const PENDING_COLOR = new THREE.Color('#3a4766')
-const ACTIVE_COLOR = new THREE.Color('#a78bff')
-const DONE_COLOR = new THREE.Color('#6effc7')
+const PENDING_COLOR = new THREE.Color('#4a4238')
+const ACTIVE_COLOR = new THREE.Color('#e6b450')
+const DONE_COLOR = new THREE.Color('#7cc495')
 
 function arrangeTasks(center, count) {
   const spread = Math.min(0.62 * (count - 1), 3.2)
@@ -111,7 +111,7 @@ export default function PlannerTasks({ center, trigger }) {
           </mesh>
 
           <Billboard position={[0, 0.3, 0]} visible={false} ref={(el) => (checkRefs.current[i] = el)}>
-            <Text fontSize={0.16} color="#6effc7" anchorX="center" anchorY="middle">
+            <Text fontSize={0.16} color="#7cc495" anchorX="center" anchorY="middle">
               {'✓'}
             </Text>
           </Billboard>
@@ -133,7 +133,7 @@ export default function PlannerTasks({ center, trigger }) {
 
       <mesh ref={packetRef} visible={false}>
         <sphereGeometry args={[0.05, 10, 10]} />
-        <meshBasicMaterial color="#a78bff" toneMapped={false} />
+        <meshBasicMaterial color="#e6b450" toneMapped={false} />
       </mesh>
     </group>
   )

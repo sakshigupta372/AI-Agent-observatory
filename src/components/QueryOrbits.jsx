@@ -51,7 +51,7 @@ export default function QueryOrbits({ center, memories = [], onRecall, onHover }
             }}
           >
             <icosahedronGeometry args={[0.12, 0]} />
-            <meshBasicMaterial color="#6ea8ff" wireframe />
+            <meshBasicMaterial color="#efe6d6" wireframe />
           </mesh>
         )
       })}

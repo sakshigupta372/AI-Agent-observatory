@@ -12,7 +12,7 @@ const ARROW_AT = 0.6
 
 // A curved tube between two nodes, with an arrowhead showing the direction of
 // flow and (unless reduced motion is requested) a pulse travelling along it.
-export default function Connection({ from, to, active, dimmed, ghost, color = '#7fd9ff', onHover, reducedMotion = false, phase = 0 }) {
+export default function Connection({ from, to, active, dimmed, ghost, color = '#d8cfc0', onHover, reducedMotion = false, phase = 0 }) {
   const matRef = useRef()
   const pulseRef = useRef()
   const curve = useMemo(() => buildArcCurve(from, to), [from, to])

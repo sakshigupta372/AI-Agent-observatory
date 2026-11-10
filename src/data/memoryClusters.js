@@ -3,12 +3,12 @@
 // instead of reshuffling every time the component mounts.
 
 export const MEMORY_CLUSTERS = [
-  { id: 'jobs', label: 'Jobs', color: '#ffb168', offset: [-1.3, 0.55, 0.1] },
-  { id: 'users', label: 'Users', color: '#6ea8ff', offset: [1.2, 0.5, 0.35] },
-  { id: 'projects', label: 'Projects', color: '#a78bff', offset: [-0.85, -0.65, 0.55] },
-  { id: 'conversations', label: 'Conversations', color: '#8fd3ff', offset: [0.95, -0.55, -0.35] },
-  { id: 'documents', label: 'Documents', color: '#ff8fd0', offset: [-0.05, 0.95, -0.65] },
-  { id: 'preferences', label: 'Preferences', color: '#6effc7', offset: [0.15, -0.95, 0.75] },
+  { id: 'jobs', label: 'Jobs', color: '#e8925a', offset: [-1.3, 0.55, 0.1] },
+  { id: 'users', label: 'Users', color: '#a9bfe3', offset: [1.2, 0.5, 0.35] },
+  { id: 'projects', label: 'Projects', color: '#e6b450', offset: [-0.85, -0.65, 0.55] },
+  { id: 'conversations', label: 'Conversations', color: '#8fc7b5', offset: [0.95, -0.55, -0.35] },
+  { id: 'documents', label: 'Documents', color: '#c3a6d8', offset: [-0.05, 0.95, -0.65] },
+  { id: 'preferences', label: 'Preferences', color: '#7cc495', offset: [0.15, -0.95, 0.75] },
 ]
 
 const POINTS_PER_CLUSTER = 36

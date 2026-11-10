@@ -72,7 +72,7 @@ export default function RunNarration({ exec, details, onInspect, children }) {
             <ol className="narr-steps" ref={listRef}>
               {story.map((item) => (
                 <li key={item.key} className={`${item.status}${item.retry ? ' retry' : ''}`}>
-                  <span className="narr-mark" style={{ '--node': COLOR[item.node] || '#a2a0ac' }} aria-label={STATUS_WORD[item.status]}>
+                  <span className="narr-mark" style={{ '--node': COLOR[item.node] || '#9c958a' }} aria-label={STATUS_WORD[item.status]}>
                     {MARK[item.status]}
                   </span>
                   <span className="narr-text">

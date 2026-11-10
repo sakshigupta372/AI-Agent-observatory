@@ -5,11 +5,11 @@ import { stepName, toolName } from '../data/labels.js'
 export { stepName, toolName }
 
 const KIND_COLOR = {
-  planner: '#a78bff',
-  memory: '#ff8fd0',
-  tool: '#ffb168',
-  llm: '#6effc7',
-  verifier: '#d7c4ff',
+  planner: '#a87612',
+  memory: '#7d5f9e',
+  tool: '#b8551f',
+  llm: '#357a66',
+  verifier: '#4a689b',
 }
 
 export const STATUS_PLAIN = { ok: 'answered', degraded: 'answered with fallback', failed: 'failed' }
@@ -132,7 +132,7 @@ export default function TraceView({ trace }) {
                     style={{
                       left: `${left}%`,
                       width: `${width}%`,
-                      background: span.status === 'error' ? '#ff6b86' : KIND_COLOR[span.kind] || '#7fd9ff',
+                      background: span.status === 'error' ? '#c4321c' : KIND_COLOR[span.kind] || '#6b645b',
                     }}
                   />
                 </span>

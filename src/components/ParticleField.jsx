@@ -4,7 +4,7 @@ import * as THREE from 'three'
 
 // Subtle ambient floating particles to give the scene depth and a sense
 // of a living data environment, without distracting from the nodes.
-export default function ParticleField({ count = 500, color = '#7fa8ff' }) {
+export default function ParticleField({ count = 500, color = '#d8cfc0' }) {
   const points = useRef()
   const material = useRef()
   const target = useRef(new THREE.Color(color))

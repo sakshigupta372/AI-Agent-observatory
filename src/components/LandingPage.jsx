@@ -11,8 +11,11 @@ const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)'
 const pad = (n) => String(n).padStart(2, '0')
 
 // Adds `.in` to every [data-reveal] element once it scrolls into view.
+// Sections are only hidden while `reveal-on` is set, so they stay visible
+// if this script never runs.
 function useReveal() {
   useEffect(() => {
+    const root = document.documentElement
     const els = document.querySelectorAll('[data-reveal]')
     const io = new IntersectionObserver(
       (entries) => {
@@ -23,10 +26,14 @@ function useReveal() {
           }
         }
       },
-      { threshold: 0.15 }
+      { threshold: 0, rootMargin: '0px 0px -8% 0px' }
     )
+    root.classList.add('reveal-on')
     els.forEach((el) => io.observe(el))
-    return () => io.disconnect()
+    return () => {
+      io.disconnect()
+      root.classList.remove('reveal-on')
+    }
   }, [])
 }
 
@@ -213,6 +220,7 @@ function Story() {
 
 export default function LandingPage() {
   const { runs, totals } = useLiveNumbers()
+  useReveal()
 
   const latest = runs ? latestByConfig(runs) : []
   const replan = latest.find((row) => row.item.id === 'replan')?.run
@@ -254,7 +262,9 @@ export default function LandingPage() {
           <div className="metric">
             <b><CountUp value={rate(replan)} suffix="%" /></b>
             <p>
-              of test questions answered correctly with fact-checking and retry, up from {rate(baseline) ?? '—'}% without them.
+              {`of test questions answered correctly with fact-checking and retry${
+                rate(baseline) != null ? `, up from ${rate(baseline)}% without them` : ''
+              }.`}
             </p>
           </div>
           <div className="metric">

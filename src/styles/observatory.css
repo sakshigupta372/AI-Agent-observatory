@@ -318,11 +318,11 @@
 }
 
 .obs-legend li i.retry {
-  background: #ff7a8a;
+  background: var(--red);
 }
 
 .obs-legend li i.flow {
-  background: linear-gradient(90deg, rgba(159, 232, 255, 0.2), #9fe8ff);
+  background: linear-gradient(90deg, rgba(24, 21, 18, 0.15), var(--ink));
 }
 
 .obs-app .zone-badge {
@@ -477,7 +477,7 @@
 }
 
 .narr-steps li.retry {
-  border-left: 3px solid #ff7a8a;
+  border-left: 3px solid var(--red);
 }
 
 .narr-mark {
@@ -962,8 +962,8 @@
 }
 
 .obs-dock .example-chips button:hover:not(:disabled) {
-  border-color: var(--blue);
-  color: var(--blue-deep);
+  border-color: var(--ink);
+  color: var(--red);
 }
 
 .obs-dock .example-chips button:disabled {
@@ -1212,6 +1212,11 @@
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
+  }
+
+  .obs-dock .example-chips {
+    flex-wrap: wrap;
+    overflow: visible;
   }
 
   .console-actions {

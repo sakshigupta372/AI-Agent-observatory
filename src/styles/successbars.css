@@ -38,7 +38,7 @@
 }
 
 .success-bar.replan .success-bar-track span {
-  background: linear-gradient(90deg, #4fd1a5, #7fd9ff);
+  background: var(--ink);
 }
 
 .success-bar-note {

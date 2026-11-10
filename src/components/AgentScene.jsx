@@ -182,7 +182,7 @@ export default function AgentScene() {
     const to = positionOf(b)
     if (!from || !to) return
     const feedback = a === 'verifier' && b === 'planner'
-    const color = feedback ? '#ff7a8a' : (nodeById[b] ?? toolById[b])?.color || '#9fe8ff'
+    const color = feedback ? '#ff6a4d' : (nodeById[b] ?? toolById[b])?.color || '#d8cfc0'
     const spawned = Array.from({ length: count }).map((_, i) => ({
       id: `${key}-${i}-${Math.random()}`,
       from,
@@ -325,7 +325,7 @@ export default function AgentScene() {
             <directionalLight position={[6, 10, 6]} intensity={0.5} color="#bcd4ff" />
 
             <Stars radius={60} depth={30} count={1500} factor={2} fade speed={reducedMotion ? 0 : 0.4} />
-            <ParticleField count={400} color={zone?.color || '#7fa8ff'} />
+            <ParticleField count={400} color={zone?.color || '#d8cfc0'} />
 
             {exec.ghostEdges.map((edge, index) => {
               const from = positionOf(edge[0])
@@ -353,7 +353,7 @@ export default function AgentScene() {
                 from={nodeById.verifier.position}
                 to={nodeById.planner.position}
                 active
-                color="#ff7a8a"
+                color="#ff6a4d"
                 reducedMotion={reducedMotion}
                 onHover={(over) =>
                   setHovered(
