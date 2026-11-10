@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react'
-import { buildSteps } from '../data/scenarios.js'
 import { MEMORY_CLUSTERS } from '../data/memoryClusters.js'
+import { runSummary, stepEnd, stepStart, toolPlainName } from '../data/narration.js'
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const CLUSTER_LABELS = Object.fromEntries(MEMORY_CLUSTERS.map((c) => [c.id, c.label]))
@@ -10,6 +10,11 @@ const TOOL_CLUSTER = {
   database: 'users',
   external_api: 'documents',
 }
+
+// Server steps can finish in a few milliseconds; each visual state is held
+// at least this long so the viewer can follow the order.
+const MIN_DWELL = 700
+const STEER_WINDOW = 1800
 
 const IDLE_STATE = {
   running: false,
@@ -40,7 +45,11 @@ const IDLE_STATE = {
   feedbackCount: 0,
   replans: [],
   runTrace: null,
+  story: [],
+  summary: null,
 }
+
+const clock = () => new Date().toLocaleTimeString('en-GB')
 
 async function postJson(body, signal) {
   try {
@@ -99,14 +108,6 @@ async function streamExecute(query, plan, onEvent, extra = {}, signal) {
   }
 }
 
-function latencyFor(step, live, routeMs, lastTraceTime) {
-  if (step.id === 'intent') return { latency: routeMs, note: 'Measured routing time' }
-  if (step.timingKey && live?.timings?.[step.timingKey] != null) {
-    return { latency: live.timings[step.timingKey], note: 'Measured API time' }
-  }
-  return { latency: Math.max(0, Math.round(performance.now() - lastTraceTime)), note: null }
-}
-
 export function useAgentExecution() {
   const [state, setState] = useState(IDLE_STATE)
   const runId = useRef(0)
@@ -125,8 +126,12 @@ export function useAgentExecution() {
       ...prev,
       running: false,
       awaitingSteer: false,
+      activeNodeId: null,
+      activeConnection: null,
+      activeTool: null,
       label: 'Stopped',
       error: prev.response ? prev.error : prev.error || 'Run stopped by user.',
+      summary: { status: 'failed', title: 'Stopped', lines: [], error: 'You stopped this run.' },
     }))
   }, [])
 
@@ -144,6 +149,8 @@ export function useAgentExecution() {
       query: memory.query,
       label: 'Recalled run',
       streamText: '',
+      story: [],
+      summary: { status: 'ok', title: 'Recalled from memory', lines: ['This answer was saved by an earlier run; nothing was re-run.'], error: null },
     }))
   }, [])
 
@@ -154,273 +161,267 @@ export function useAgentExecution() {
     abortRef.current = controller
     const frames = []
     const visited = []
+    const started = performance.now()
     let ghostEdges = []
+    let storySeq = 0
+
+    // Visual changes go through a queue so fast server steps stay visible
+    // for MIN_DWELL each, in the order they actually happened.
+    const queue = []
+    let pumping = false
+    const pump = async () => {
+      pumping = true
+      while (queue.length) {
+        if (!alive()) {
+          queue.length = 0
+          break
+        }
+        const { apply, hold } = queue.shift()
+        apply()
+        await delay(hold ?? MIN_DWELL)
+      }
+      pumping = false
+    }
+    const enqueue = (apply, hold) => {
+      queue.push({ apply, hold })
+      if (!pumping) pump()
+    }
+    const drained = async () => {
+      while (pumping || queue.length) await delay(40)
+    }
+
+    const show = (visual, extra = {}) => {
+      frames.push({
+        activeNodeId: visual.activeNodeId ?? null,
+        activeConnection: visual.activeConnection ?? null,
+        activeTool: visual.activeTool ?? null,
+        label: visual.label || '',
+      })
+      if (visual.activeConnection) visited.push(visual.activeConnection)
+      setState((prev) => ({
+        ...prev,
+        activeNodeId: visual.activeNodeId ?? null,
+        activeConnection: visual.activeConnection ?? null,
+        activeTool: visual.activeTool ?? null,
+        label: visual.label || prev.label,
+        packetTrigger: visual.activeConnection
+          ? { key: `${id}-${frames.length}`, connection: visual.activeConnection, count: visual.packets ?? 1, duration: 650 }
+          : prev.packetTrigger,
+        ...(typeof extra === 'function' ? extra(prev) : extra),
+      }))
+    }
+
+    const addStory = (item) => {
+      const key = `${id}-${(storySeq += 1)}`
+      setState((prev) => ({ ...prev, story: [...prev.story, { key, status: 'live', ...item }] }))
+      return key
+    }
+    const settleStory = (key, patch) => {
+      setState((prev) => ({ ...prev, story: prev.story.map((item) => (item.key === key ? { ...item, ...patch } : item)) }))
+    }
+    const logTrace = (entry) => {
+      setState((prev) => ({
+        ...prev,
+        trace: [...prev.trace, { id: `${entry.event}-${performance.now()}`, time: clock(), ...entry }],
+      }))
+    }
 
     setState((prev) => {
       ghostEdges = prev.visitedEdges || []
       return {
         ...IDLE_STATE,
         running: true,
-        label: 'Classifying intent...',
+        label: 'Reading your question…',
         query,
         ghostEdges,
         shockKey: prev.shockKey,
       }
     })
 
-    const record = (slice) => {
-      frames.push({
-        activeNodeId: slice.activeNodeId ?? null,
-        activeConnection: slice.activeConnection ?? null,
-        activeTool: slice.activeTool ?? null,
-        label: slice.label || '',
-      })
-      if (slice.activeConnection) visited.push(slice.activeConnection)
-    }
-
+    // 1. Route: real request, shown on the input nodes while it runs.
+    show({ activeNodeId: 'user', label: 'Reading your question…' })
+    const routeKey = addStory({ node: 'intent', text: 'Reading your question…' })
     const routeStarted = performance.now()
     const planResult = await postJson({ phase: 'route', query }, controller.signal)
     const routeMs = Math.round(performance.now() - routeStarted)
     if (!alive()) return
 
     if (!planResult?.tool) {
+      const error = planResult?.error || 'Intent routing failed. Check GROQ_API_KEY in .env and restart the dev server.'
+      settleStory(routeKey, { status: 'failed', text: 'Could not understand the question.', detail: error })
+      logTrace({ event: 'ROUTE', latency: routeMs, failed: true, detail: { step: 'route', phase: 'Routing', note: error } })
       setState((prev) => ({
+        ...prev,
         ...IDLE_STATE,
+        story: prev.story,
+        trace: prev.trace,
         ghostEdges,
         query,
         shockKey: prev.shockKey + 1,
-        error: planResult?.error || 'Intent routing failed. Check GROQ_API_KEY in .env and restart the dev server.',
-        trace: [
-          {
-            id: `route-${routeStarted}`,
-            time: new Date().toLocaleTimeString('en-GB'),
-            event: 'ROUTING_FAILED',
-            latency: routeMs,
-            failed: true,
-            detail: { step: 'route', phase: 'Classifying intent...', note: planResult?.error || 'Routing request failed.' },
-          },
-        ],
+        error,
+        summary: { status: 'failed', title: 'Could not answer', lines: [], error },
       }))
       return
     }
 
     let plan = planResult
-    let steps = buildSteps(plan)
-    let live = null
-    let lastTraceTime = performance.now()
-    setState((prev) => ({
-      ...prev,
-      confidence: { intent: plan.routedBy === 'keywords' ? 62 : 88, tool: null, answer: null, verifier: null },
-    }))
+    settleStory(routeKey, {
+      status: 'ok',
+      text: `Understood: ${plan.intentLabel}${plan.routedBy === 'keywords' ? ' (keyword fallback)' : ''}.`,
+      ms: routeMs,
+    })
+    logTrace({ event: 'ROUTE', latency: routeMs, detail: { step: 'route', phase: plan.intentLabel, note: `Routed by ${plan.routedBy}` } })
 
-    for (let index = 0; index < steps.length; index += 1) {
+    enqueue(() => show({ activeConnection: ['user', 'intent'], label: `Understood: ${plan.intentLabel}` }), 450)
+    enqueue(() => show({ activeNodeId: 'intent', label: `Understood: ${plan.intentLabel}` }), 450)
+    enqueue(() => show({ activeConnection: ['intent', 'planner'], label: 'Planning…' }), 450)
+    enqueue(() =>
+      show(
+        { activeNodeId: 'planner', label: `Planned ${plan.tasks.length} steps` },
+        { plannerTrigger: { key: `${id}-plan`, tasks: plan.tasks, duration: 400 + plan.tasks.length * 300 } }
+      ),
+      400 + plan.tasks.length * 300
+    )
+    await drained()
+    if (!alive()) return
+
+    // 2. Steering window: the planner's tool choice can be overridden.
+    const planKey = addStory({ node: 'planner', text: `Planner picked ${toolPlainName(plan.tool)}. Tap another tool to override.` })
+    setState((prev) => ({ ...prev, awaitingSteer: true, label: `Planner picked ${toolPlainName(plan.tool)}` }))
+    const choice = await new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(null), STEER_WINDOW)
+      steerWait.current = (tool) => {
+        clearTimeout(timer)
+        resolve(tool)
+      }
+    })
+    steerWait.current = null
+    if (!alive()) return
+    if (choice && choice !== plan.tool) {
+      plan = { ...plan, tool: choice, memoryCluster: TOOL_CLUSTER[choice] || plan.memoryCluster, steered: true }
+    }
+    settleStory(planKey, {
+      status: 'ok',
+      text: `Plan: ${plan.tasks.length} steps using ${toolPlainName(plan.tool)}${plan.steered ? ' (your choice)' : ''}.`,
+    })
+    setState((prev) => ({ ...prev, awaitingSteer: false }))
+
+    // 3. Execute: every visual below is driven by a real server event.
+    const openSteps = new Map()
+    const checks = []
+    const onEvent = (event) => {
       if (!alive()) return
-      const step = steps[index]
-
-      if (step.id === 'toolhub') {
-        const visual = {
-          activeNodeId: 'toolhub',
-          activeConnection: null,
-          activeTool: null,
-          label: 'Choose a tool, or wait to continue',
-        }
-        record(visual)
-        setState((prev) => ({
-          ...prev,
-          ...visual,
-          awaitingSteer: true,
-          trace: [
-            ...prev.trace,
-            {
-              id: `toolhub-${performance.now()}`,
-              time: new Date().toLocaleTimeString('en-GB'),
-              event: step.trace,
-              latency: Math.max(0, Math.round(performance.now() - lastTraceTime)),
-              detail: { step: 'toolhub', phase: visual.label, activeNode: 'toolhub', note: 'Steering window open' },
-            },
-          ],
-        }))
-        lastTraceTime = performance.now()
-        const choice = await new Promise((resolve) => {
-          const timer = setTimeout(() => resolve(null), 1800)
-          steerWait.current = (tool) => {
-            clearTimeout(timer)
-            resolve(tool)
-          }
-        })
-        steerWait.current = null
-        if (!alive()) return
-        if (choice && choice !== plan.tool) {
-          plan = { ...plan, tool: choice, memoryCluster: TOOL_CLUSTER[choice] || plan.memoryCluster, steered: true }
-          const rebuilt = buildSteps(plan)
-          const hubAt = rebuilt.findIndex((item) => item.id === 'toolhub')
-          steps = steps.slice(0, index + 1).concat(rebuilt.slice(hubAt + 1))
-        }
-        setState((prev) => ({ ...prev, awaitingSteer: false, label: `Routing to ${String(plan.tool).replaceAll('_', ' ')}` }))
-        await delay(350)
-        continue
-      }
-
-      if (step.id === 'to-tool') {
-        const started = performance.now()
-        const visual = {
-          activeNodeId: step.activeNode,
-          activeConnection: step.connection,
-          activeTool: step.activeTool,
-          label: step.label,
-        }
-        record(visual)
-        setState((prev) => ({
-          ...prev,
-          ...visual,
-          packetTrigger: {
-            key: `${step.id}-${plan.tool}`,
-            connection: step.connection,
-            count: step.packetCount ?? 1,
-            duration: step.duration,
-          },
-          trace: [
-            ...prev.trace,
-            {
-              id: `${step.id}-${started}`,
-              time: new Date().toLocaleTimeString('en-GB'),
-              event: step.trace,
-              latency: Math.max(0, Math.round(started - lastTraceTime)),
-              detail: {
-                step: step.id,
-                phase: step.label,
-                activeTool: step.activeTool,
-                connection: step.connection,
-                note: 'Tool call started',
-              },
-            },
-          ],
-        }))
-        lastTraceTime = started
-        live = await streamExecute(query, plan, (event) => {
-          if (!alive()) return
-          if (event.type === 'token') {
-            setState((prev) => ({ ...prev, streamText: `${prev.streamText}${event.text}` }))
-          } else if (event.type === 'sources') {
-            setState((prev) => ({ ...prev, sources: event.sources || [] }))
-          } else if (event.type === 'status') {
-            setState((prev) => ({ ...prev, label: event.label || prev.label }))
-          } else if (event.type === 'reset') {
-            setState((prev) => ({ ...prev, streamText: '' }))
-          } else if (event.type === 'replan') {
-            // A real verify -> replan feedback, emitted by the server the moment it happens.
-            setState((prev) => ({
-              ...prev,
-              feedbackCount: prev.feedbackCount + 1,
-              replans: [...prev.replans, event],
-              activeNodeId: 'planner',
-              activeConnection: ['verifier', 'planner'],
-              activeTool: null,
-              label: `Replanning (attempt ${event.attempt}): ${event.reason}`,
-              packetTrigger: { key: `replan-${event.attempt}-${performance.now()}`, connection: ['verifier', 'planner'], count: 3, duration: 900 },
-              trace: [
-                ...prev.trace,
-                {
-                  id: `replan-${event.attempt}-${performance.now()}`,
-                  time: new Date().toLocaleTimeString('en-GB'),
-                  event: `REPLAN_TRIGGERED (attempt ${event.attempt})`,
-                  latency: 0,
-                  failed: true,
-                  detail: {
-                    step: 'replan',
-                    phase: 'Verifier fed a failure back to the Planner',
-                    connection: ['verifier', 'planner'],
-                    note: `Why: ${event.reason}. New search: "${event.revisedQuery}". Retries left: ${event.retriesLeft}.`,
-                  },
-                },
-              ],
-            }))
-          }
-        }, options.inject ? { inject: options.inject } : {}, controller.signal)
-        if (!alive()) return
-        if (live?.confidence) {
-          setState((prev) => ({ ...prev, confidence: live.confidence, sources: live.sources || prev.sources, runTrace: live.trace || null }))
-        }
-        await delay(280)
-        continue
-      }
-
-      const measured = latencyFor(step, live, routeMs, lastTraceTime)
-      if (step.trace) lastTraceTime = performance.now()
-      const failed = Boolean(step.final && live?.error && !live?.response)
-      const visual = {
-        activeNodeId: step.activeNode,
-        activeConnection: step.connection,
-        activeTool: step.activeTool,
-        label: step.id === 'verifier' && live?.verdicts?.length ? `Verifier checked ${live.verdicts.length} claims` : step.label,
-      }
-      record(visual)
-
-      setState((prev) => {
-        const trace = step.trace
-          ? [
-              ...prev.trace,
+      if (event.type === 'token') {
+        setState((prev) => ({ ...prev, streamText: `${prev.streamText}${event.text}` }))
+      } else if (event.type === 'sources') {
+        setState((prev) => ({ ...prev, sources: event.sources || [] }))
+      } else if (event.type === 'reset') {
+        setState((prev) => ({ ...prev, streamText: '' }))
+      } else if (event.type === 'step') {
+        if (event.phase === 'start') {
+          const view = stepStart(event)
+          if (!view) return
+          const stepKey = `${event.name}#${event.attempt}`
+          if (view.lead) enqueue(() => show({ activeNodeId: 'toolhub', activeConnection: view.lead, label: view.text }), 450)
+          enqueue(() => {
+            openSteps.set(stepKey, addStory({ node: view.tool || view.node, text: view.text, retry: view.retry }))
+            const extra = {}
+            if (event.name === 'memory_retrieval') {
+              extra.memoryTrigger = { key: `${id}-mem-${event.attempt}`, clusterId: plan.memoryCluster, duration: 900 }
+            }
+            show(
               {
-                id: `${step.id}-${lastTraceTime}`,
-                time: new Date().toLocaleTimeString('en-GB'),
-                event: step.trace,
-                latency: measured.latency,
-                failed: failed || Boolean(step.trace === 'TOOL_RESPONSE_RECEIVED' && live?.error && !live?.sources?.length),
-                detail: {
-                  step: step.id,
-                  phase: visual.label,
-                  activeNode: step.activeNode,
-                  activeTool: step.activeTool,
-                  connection: step.connection,
-                  note: measured.note,
-                },
+                activeNodeId: view.node,
+                activeTool: view.tool || null,
+                activeConnection: view.connection,
+                packets: view.tool ? 3 : 1,
+                label: view.text,
               },
-            ]
-          : prev.trace
-
-        let plannerTrigger = prev.plannerTrigger
-        if (step.planner) plannerTrigger = { key: step.id, tasks: step.planner.tasks, duration: step.duration }
-
-        let memoryTrigger = prev.memoryTrigger
-        let memoryStats = prev.memoryStats
-        let memoryLitIds = prev.memoryLitIds
-        if (step.memory) {
-          const items = live?.retrieved ?? []
-          memoryLitIds = items.map((item) => item.id)
-          memoryTrigger = { key: step.id, clusterId: step.memory.clusterId, duration: step.duration }
-          memoryStats = {
-            clusterLabel: CLUSTER_LABELS[step.memory.clusterId] ?? step.memory.clusterId,
-            retrieved: items.length,
-            latencyMs: live?.timings?.memoryMs ?? measured.latency,
-            items,
-          }
+              extra
+            )
+          })
+        } else {
+          const result = stepEnd(event)
+          const stepKey = `${event.name}#${event.attempt}`
+          if (event.name === 'verification' && event.summary?.claims != null) checks.push(event.summary)
+          enqueue(() => {
+            const key = openSteps.get(stepKey)
+            if (key) settleStory(key, { status: result.status, text: result.text, ms: event.ms })
+            logTrace({
+              event: event.name.toUpperCase().replace(':', ' · '),
+              latency: event.ms ?? 0,
+              failed: event.status === 'error',
+              detail: { step: event.name, phase: result.text, note: event.error || (event.attempt > 1 ? `Attempt ${event.attempt}` : null) },
+            })
+            if (event.name.startsWith('tool:') && event.status !== 'error') {
+              const tool = event.name.slice(5)
+              show({ activeTool: tool, activeConnection: [tool, 'toolhub'], label: result.text })
+            }
+          }, event.name.startsWith('tool:') ? MIN_DWELL : 120)
         }
-
-        return {
-          ...prev,
-          ...visual,
-          packetTrigger: step.connection
-            ? { key: step.id, connection: step.connection, count: step.packetCount ?? 1, duration: step.duration }
-            : null,
-          plannerTrigger,
-          memoryTrigger,
-          memoryStats,
-          memoryLitIds,
-          response: step.final ? live?.response || prev.streamText || null : prev.response,
-          error: step.final ? live?.error || null : prev.error,
-          sources: live?.sources || prev.sources,
-          asOf: step.final ? live?.asOf || null : prev.asOf,
-          memorySnapshot: step.final ? live?.memories || null : prev.memorySnapshot,
-          verdicts: live?.verdicts || prev.verdicts,
-          confidence: live?.confidence || prev.confidence,
-          trace,
-        }
-      })
-
-      await delay(step.duration)
+      } else if (event.type === 'replan') {
+        // A real verify -> replan feedback, emitted by the server the moment it happens.
+        enqueue(() => {
+          setState((prev) => ({
+            ...prev,
+            feedbackCount: prev.feedbackCount + 1,
+            replans: [...prev.replans, event],
+            story: [
+              ...prev.story,
+              {
+                key: `${id}-replan-${event.attempt}`,
+                node: 'planner',
+                status: 'warn',
+                retry: true,
+                text: `Retrying: ${event.reason}`,
+                detail: event.revisedQuery ? `New search: “${event.revisedQuery}”` : null,
+              },
+            ],
+          }))
+          show({ activeNodeId: 'planner', activeConnection: ['verifier', 'planner'], packets: 3, label: `Retrying: ${event.reason}` })
+          logTrace({
+            event: `REPLAN (attempt ${event.attempt})`,
+            latency: 0,
+            failed: true,
+            detail: { step: 'replan', phase: 'Fact-check sent a failure back to the planner', note: `Why: ${event.reason}. New search: "${event.revisedQuery}". Retries left: ${event.retriesLeft}.` },
+          })
+        }, 900)
+      }
     }
 
+    const live = await streamExecute(query, plan, onEvent, options.inject ? { inject: options.inject } : {}, controller.signal)
     if (!alive()) return
+    await drained()
+    if (!alive()) return
+
+    // 4. Result.
+    const failed = Boolean(live?.error && !live?.response)
+    const totalMs = Math.round(performance.now() - started)
+    const items = live?.retrieved ?? []
+    show(
+      { activeNodeId: 'response', activeConnection: ['verifier', 'response'], label: failed ? 'Could not answer' : 'Answer ready' },
+      {
+        response: live?.response || null,
+        error: live?.error || null,
+        sources: live?.sources || [],
+        asOf: live?.asOf || null,
+        verdicts: live?.verdicts || [],
+        confidence: live?.confidence || null,
+        memorySnapshot: live?.memories || null,
+        memoryLitIds: items.map((item) => item.id),
+        memoryStats: {
+          clusterLabel: CLUSTER_LABELS[plan.memoryCluster] ?? plan.memoryCluster,
+          retrieved: items.length,
+          latencyMs: live?.timings?.memoryMs ?? null,
+          items,
+        },
+        runTrace: live?.trace || null,
+      }
+    )
+    logTrace({ event: 'RESPONSE', latency: totalMs, failed, detail: { step: 'response', phase: failed ? 'No answer' : 'Answer delivered', note: 'Total run time in the browser' } })
+    await delay(500)
+    if (!alive()) return
+
     setState((prev) => ({
       ...IDLE_STATE,
       response: prev.response,
@@ -438,8 +439,10 @@ export function useAgentExecution() {
       visitedEdges: visited,
       feedbackCount: prev.feedbackCount,
       replans: prev.replans,
-      runTrace: live?.trace || prev.runTrace,
-      shockKey: (prev.error && !prev.response) || (live?.error && !live?.response) ? prev.shockKey + 1 : prev.shockKey,
+      runTrace: prev.runTrace,
+      story: prev.story,
+      summary: runSummary(live, live?.trace?.totalMs ?? totalMs, checks),
+      shockKey: failed ? prev.shockKey + 1 : prev.shockKey,
       query,
     }))
   }, [])

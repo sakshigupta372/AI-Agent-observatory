@@ -26,9 +26,12 @@ export function useKeyboardShortcuts({
     if (!enabled) return
 
     const handleKeyDown = (e) => {
-      const isInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)
+      // No shortcut fires inside a dialog, and Space keeps its native meaning on buttons and links.
+      const isInput =
+        ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) || Boolean(e.target.closest?.('[role="dialog"]'))
+      const isControl = ['BUTTON', 'A'].includes(e.target.tagName) || e.target.getAttribute?.('role') === 'button'
 
-      if (e.key === ' ' && !isInput && onRun) { e.preventDefault(); onRun() }
+      if (e.key === ' ' && !isInput && !isControl && onRun) { e.preventDefault(); onRun() }
       if (e.key === 'Escape' && onStop) { onStop() }
       if (e.key === 'r' && !isInput && onReplay) { e.preventDefault(); onReplay() }
       if (e.key === 'h' && !isInput && onToggleHistory) { e.preventDefault(); onToggleHistory() }

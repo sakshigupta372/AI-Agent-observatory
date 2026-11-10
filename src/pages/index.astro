@@ -1,26 +1,23 @@
 ---
-import ObservatoryApp from '../components/ObservatoryApp.jsx'
-import '../styles/global.css'
+import PageTransitions from '../components/PageTransitions.astro'
+import { pageMotion } from '../data/pageMotion.js'
+import LandingPage from '../components/LandingPage.jsx'
 ---
-<html lang="en">
+<html lang="en" transition:animate={pageMotion}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Agent Observatory</title>
+    <title>AI Agent Observatory · See why an AI agent got it wrong</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <meta
+      name="description"
+      content="Watch an AI agent plan, search, fact-check and retry, step by step. Every run is recorded and measured."
+    />
+    <PageTransitions />
   </head>
   <body>
-    <div class="app-root">
-      <div class="title-header">
-        <h1>AI AGENT OBSERVATORY</h1>
-        <span>AUTONOMOUS EXECUTION VISUALIZATION</span>
-      </div>
-
-      <nav class="site-nav">
-        <a class="current" href="/">Observatory</a>
-        <a href="/traces">Traces</a>
-        <a href="/evals">Evaluations</a>
-      </nav>
-      <ObservatoryApp client:only="react" />
-    </div>
+    <LandingPage client:load />
   </body>
 </html>

@@ -9,6 +9,61 @@ const KIND_COLOR = {
   verifier: '#d7c4ff',
 }
 
+export const STATUS_PLAIN = { ok: 'answered', degraded: 'answered with fallback', failed: 'failed' }
+
+const STEP_PLAIN = {
+  plan: 'Plan',
+  memory_retrieval: 'Memory lookup',
+  reasoning: 'Write answer',
+  verification: 'Fact-check',
+  replan: 'Retry plan',
+  'tool:web_search': 'Web search',
+  'tool:calculator': 'Calculator',
+  'tool:database': 'Customer database',
+  'tool:external_api': 'Text analysis',
+}
+
+const TOOL_PLAIN = {
+  web_search: 'web search',
+  calculator: 'the calculator',
+  database: 'the customer database',
+  external_api: 'text analysis',
+}
+
+const INJECT_PLAIN = {
+  hallucinated_claim: 'a fake fact slipped into the answer',
+  irrelevant_retrieval: 'off-topic search results',
+  empty_retrieval: 'an empty search',
+  tool_timeout: 'a tool timeout',
+}
+
+export const stepName = (name) => STEP_PLAIN[name] || name
+export const toolName = (tool) => STEP_PLAIN[`tool:${tool}`] || tool
+
+// One short paragraph a non-engineer can read before the detailed timeline.
+export function describeRun(trace) {
+  const parts = []
+  const tool = TOOL_PLAIN[trace.tool]
+  if (trace.injected) parts.push(`A failure was planted on purpose: ${INJECT_PLAIN[trace.injected] || trace.injected}.`)
+  parts.push(tool ? `The agent chose ${tool}.` : 'The agent planned the question.')
+  const failed = trace.spans.filter((s) => s.status === 'error')
+  if (failed.length) {
+    const first = failed[0]
+    const reason = first.error ? ` (${first.error.length > 90 ? `…` : first.error})` : ''
+    parts.push(`${failed.map((s) => stepName(s.name)).join(', ')} went wrong${reason}.`)
+  }
+  if (trace.replans > 0) {
+    parts.push(`It noticed a problem and went back to retry ${trace.replans === 1 ? 'once' : ` times`}.`)
+  }
+  if (trace.claims) {
+    parts.push(`The fact-checker backed up ${trace.claimsSupported} of ${trace.claims} claims with its sources.`)
+  }
+  if (trace.status === 'ok') parts.push(`Answered in ${formatMs(trace.totalMs)}.`)
+  else if (trace.status === 'degraded') parts.push(`It still answered, using a fallback, in ${formatMs(trace.totalMs)}.`)
+  else parts.push('It could not answer.')
+  return parts.join(' ')
+}
+
 export function formatMs(ms) {
   if (ms == null) return '–'
   return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`
@@ -44,8 +99,9 @@ export default function TraceView({ trace }) {
 
   return (
     <div className="tv">
+      <p className={`tv-plain ${trace.status}`}>{describeRun(trace)}</p>
       <div className="tv-summary">
-        <Metric label="status" value={trace.status} tone={trace.status === 'ok' ? 'good' : trace.status === 'failed' ? 'bad' : 'warn'} />
+        <Metric label="result" value={STATUS_PLAIN[trace.status] || trace.status} tone={trace.status === 'ok' ? 'good' : trace.status === 'failed' ? 'bad' : 'warn'} />
         <Metric label="total" value={formatMs(trace.totalMs)} />
         <Metric label="attempts" value={trace.attempts ?? 1} />
         <Metric label="replans" value={trace.replans ?? 0} tone={trace.replans ? 'warn' : ''} />
@@ -65,7 +121,7 @@ export default function TraceView({ trace }) {
       )}
       {failedSpans.length > 0 && (
         <div className="tv-note bad">
-          {failedSpans.length} step{failedSpans.length > 1 ? 's' : ''} failed: {failedSpans.map((s) => s.name).join(', ')}
+          {failedSpans.length} step{failedSpans.length > 1 ? 's' : ''} failed: {failedSpans.map((s) => stepName(s.name)).join(', ')}
         </div>
       )}
 
@@ -79,7 +135,7 @@ export default function TraceView({ trace }) {
               <button type="button" className={`tv-row${span.status === 'error' ? ' failed' : ''}`} onClick={() => setOpen(expanded ? null : span.seq)}>
                 <span className="tv-seq">{span.seq}</span>
                 <span className="tv-name">
-                  {span.name}
+                  {stepName(span.name)}
                   {span.attempt > 1 && <i>retry {span.attempt - 1}</i>}
                 </span>
                 <span className="tv-bar">

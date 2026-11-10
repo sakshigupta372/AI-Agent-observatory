@@ -1,16 +1,4 @@
-// Keyword fallback when the routing model is unavailable, plus the
-// ordered pipeline the 3D scene walks. The answer text, tool timings,
-// and retrieved memory come from /api/agent — these steps only animate.
-
-const TOOL_LABELS = {
-  web_search: 'WEB SEARCH',
-  database: 'DATABASE',
-  calculator: 'CALCULATOR',
-  external_api: 'EXTERNAL API',
-}
-
-const TOP_K = 5
-const SIM_THRESHOLD = 0.78
+// Keyword fallback when the routing model is unavailable, and the example prompts.
 
 const SCENARIOS = [
   {
@@ -86,36 +74,4 @@ export const EXAMPLE_PROMPTS = [
 
 export function classify(query) {
   return SCENARIOS.find((s) => s.match.test(query)) ?? DEFAULT_SCENARIO
-}
-
-// Every step explicitly declares activeNode/connection/activeTool (using
-// null where not applicable) so the execution reducer never has to guess
-// whether to carry over previous state.
-export function buildSteps(plan) {
-  const toolId = TOOL_LABELS[plan?.tool] ? plan.tool : 'web_search'
-  const toolLabel = TOOL_LABELS[toolId]
-  const intentLabel = plan?.intentLabel || 'General Query'
-  const tasks = Array.isArray(plan?.tasks) && plan.tasks.length ? plan.tasks : ['Understand request', 'Gather information', 'Generate summary']
-  const memoryCluster = plan?.memoryCluster || 'conversations'
-  const plannerDuration = 500 + tasks.length * 450
-
-  return [
-    { id: 'user', duration: 500, activeNode: 'user', connection: null, activeTool: null, label: 'Incoming request', trace: 'REQUEST_RECEIVED' },
-    { id: 'to-intent', duration: 700, activeNode: null, connection: ['user', 'intent'], activeTool: null, label: 'Incoming request' },
-    { id: 'intent', duration: 600, activeNode: 'intent', connection: null, activeTool: null, label: `Intent: ${intentLabel}`, trace: 'INTENT_DETECTED' },
-    { id: 'to-planner', duration: 700, activeNode: null, connection: ['intent', 'planner'], activeTool: null, label: `Intent: ${intentLabel}` },
-    { id: 'planner', duration: plannerDuration, activeNode: 'planner', connection: null, activeTool: null, label: 'Planning tool execution...', trace: 'PLAN_CREATED', planner: { tasks } },
-    { id: 'to-toolhub', duration: 700, activeNode: null, connection: ['planner', 'toolhub'], activeTool: null, label: 'Planning tool execution...' },
-    { id: 'toolhub', duration: 500, activeNode: 'toolhub', connection: null, activeTool: null, label: `Routing to ${toolLabel}`, trace: `TOOL_SELECTED: ${toolLabel}` },
-    { id: 'to-tool', duration: 900, activeNode: null, connection: ['toolhub', toolId], activeTool: toolId, packetCount: 3, label: `${toolLabel} executing...`, trace: 'TOOL_EXECUTION_STARTED' },
-    { id: 'tool-result', duration: 700, activeNode: null, connection: [toolId, 'toolhub'], activeTool: toolId, label: 'Results received', trace: 'TOOL_RESPONSE_RECEIVED', timingKey: 'searchMs' },
-    { id: 'to-memory', duration: 700, activeNode: null, connection: ['toolhub', 'memory'], activeTool: null, label: 'Results received' },
-    { id: 'memory', duration: 700, activeNode: 'memory', connection: null, activeTool: null, label: 'Retrieving relevant context...', trace: 'MEMORY_RETRIEVAL', timingKey: 'memoryMs', memory: { clusterId: memoryCluster, topK: TOP_K, threshold: SIM_THRESHOLD } },
-    { id: 'to-llm', duration: 700, activeNode: null, connection: ['memory', 'llm'], activeTool: null, label: 'Retrieving relevant context...' },
-    { id: 'llm', duration: 900, activeNode: 'llm', connection: null, activeTool: null, label: 'Generating response...', trace: 'LLM_REASONING', timingKey: 'reasonMs' },
-    { id: 'to-verifier', duration: 650, activeNode: null, connection: ['llm', 'verifier'], activeTool: null, label: 'Checking claims against sources...' },
-    { id: 'verifier', duration: 700, activeNode: 'verifier', connection: null, activeTool: null, label: 'Verifier reading sources...', trace: 'VERIFIED' },
-    { id: 'to-response', duration: 700, activeNode: null, connection: ['verifier', 'response'], activeTool: null, label: 'Verifier reading sources...' },
-    { id: 'response', duration: 300, activeNode: 'response', connection: null, activeTool: null, label: 'Response ready', final: true, trace: 'RESPONSE_GENERATED' },
-  ]
 }

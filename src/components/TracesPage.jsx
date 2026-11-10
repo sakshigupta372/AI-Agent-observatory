@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import DashNav from './DashNav.jsx'
-import TraceView, { formatCost, formatMs } from './TraceView.jsx'
+import SiteFooter from './SiteFooter.jsx'
+import TraceView, { STATUS_PLAIN, formatCost, formatMs, stepName, toolName } from './TraceView.jsx'
 import '../styles/dashboard.css'
 
 function Analytics({ data }) {
@@ -9,7 +10,8 @@ function Analytics({ data }) {
   const maxAvg = Math.max(1, ...stages.map((s) => s.avg_ms))
   const okRate = totals.runs ? Math.round((totals.ok / totals.runs) * 100) : 0
   return (
-    <div className="stack" style={{ marginBottom: 18 }}>
+    <div className="stack">
+      <span className="section-label">[ Across every stored run ]</span>
       <div className="stat-row" style={{ marginBottom: 0 }}>
         <div className="stat"><b>{totals.runs}</b><span>stored runs</span></div>
         <div className="stat"><b>{okRate}%</b><span>completed without error</span></div>
@@ -17,7 +19,7 @@ function Analytics({ data }) {
         <div className="stat"><b>{formatMs(totals.p95_ms)}</b><span>p95 run time</span></div>
         <div className="stat"><b>{(totals.prompt_tokens + totals.completion_tokens).toLocaleString()}</b><span>tokens used</span></div>
         <div className="stat"><b>{formatCost(totals.cost)}</b><span>estimated model cost</span></div>
-        <div className="stat"><b>{totals.replans}</b><span>replans triggered</span></div>
+        <div className="stat"><b>{totals.replans}</b><span>retries triggered</span></div>
       </div>
       <div className="grid-2">
         <div className="card">
@@ -30,7 +32,7 @@ function Analytics({ data }) {
             <tbody>
               {stages.map((row) => (
                 <tr key={row.name}>
-                  <td>{row.name}</td>
+                  <td title={row.name}>{stepName(row.name)}</td>
                   <td className="num">{row.calls}</td>
                   <td><div className="bar-cell"><span style={{ width: `${(row.avg_ms / maxAvg) * 100}%` }} /></div></td>
                   <td className="num">{formatMs(row.avg_ms)}</td>
@@ -51,7 +53,7 @@ function Analytics({ data }) {
             <tbody>
               {tools.map((row) => (
                 <tr key={row.tool}>
-                  <td>{row.tool}</td>
+                  <td title={row.tool}>{toolName(row.tool)}</td>
                   <td className="num">{row.runs}</td>
                   <td className={`num ${row.failed ? 'warn' : 'muted'}`}>{row.failed}</td>
                   <td className="num">{formatMs(row.avg_ms)}</td>
@@ -98,13 +100,19 @@ export default function TracesPage() {
   }, [selected])
 
   return (
+    <>
+      <DashNav
+        current="/traces"
+        kicker="Traces"
+        title={<>Every run,<br />step by step</>}
+        subtitle="What the agent planned, searched, wrote and checked, with real inputs, outputs and timings for each step."
+      />
     <div className="dash">
-      <DashNav current="/traces" title="TRACE EXPLORER" subtitle="EVERY RUN, STEP BY STEP, WITH REAL INPUTS AND OUTPUTS" />
 
       {error && <div className="card bad">Could not load traces: {error}</div>}
       <Analytics data={analytics} />
 
-      <p className="hint" style={{ margin: '0 0 12px', fontSize: 12, color: '#6f7da0' }}>
+      <p className="hint" style={{ margin: '26px 0 12px' }}>
         You see the runs made from this browser plus the evaluation suite's runs. Other visitors' questions are never listed.
       </p>
 
@@ -119,11 +127,11 @@ export default function TracesPage() {
               <button key={trace.id} type="button" className={`run-item${selected === trace.id ? ' active' : ''}`} onClick={() => setSelected(trace.id)}>
                 <span className="q">{trace.query}</span>
                 <span className="meta">
-                  <span><i className={`dot ${trace.status}`} />{trace.status}</span>
-                  <span>{trace.tool || '–'}</span>
+                  <span><i className={`dot ${trace.status}`} />{STATUS_PLAIN[trace.status] || trace.status}</span>
+                  <span>{trace.tool ? toolName(trace.tool) : '–'}</span>
                   <span>{formatMs(trace.totalMs)}</span>
-                  {trace.replans > 0 && <span className="chip">{trace.replans} replan</span>}
-                  {trace.injected && <span className="chip inject">{trace.injected}</span>}
+                  {trace.replans > 0 && <span className="chip">retried {trace.replans}×</span>}
+                  {trace.injected && <span className="chip inject">planted: {trace.injected.replace('_', ' ')}</span>}
                   {trace.fromEval && <span className="chip">eval</span>}
                 </span>
               </button>
@@ -140,7 +148,7 @@ export default function TracesPage() {
                 {detail.response && (
                   <div style={{ marginTop: 16 }}>
                     <h2>Final answer</h2>
-                    <pre className="tv-json" style={{ maxHeight: 260 }}>{detail.response}</pre>
+                    <pre className="answer-box">{detail.response}</pre>
                   </div>
                 )}
               </>
@@ -151,5 +159,7 @@ export default function TracesPage() {
         </div>
       )}
     </div>
+      <SiteFooter />
+    </>
   )
 }

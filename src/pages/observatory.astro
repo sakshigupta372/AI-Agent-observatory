@@ -1,0 +1,21 @@
+---
+import PageTransitions from '../components/PageTransitions.astro'
+import { pageMotion } from '../data/pageMotion.js'
+import ObservatoryApp from '../components/ObservatoryApp.jsx'
+import '../styles/global.css'
+---
+<html lang="en" transition:animate={pageMotion}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Observatory · AI Agent Observatory</title>
+    <meta name="description" content="A live 3D map of an AI agent: watch it plan, search, write and fact-check each answer, step by step." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <PageTransitions />
+  </head>
+  <body class="obs-body">
+    <ObservatoryApp client:only="react" />
+  </body>
+</html>

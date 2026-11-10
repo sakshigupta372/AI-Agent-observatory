@@ -1,3 +1,6 @@
+import { useEffect, useRef } from 'react'
+import { parseAnswer } from '../data/parseAnswer.js'
+
 function formatTime(timestamp) {
   const date = new Date(timestamp)
   const now = new Date()
@@ -20,14 +23,43 @@ function getToolIcon(tool) {
   return icons[tool] || '❓'
 }
 
-export default function QueryHistory({ history, isOpen, onToggle, onClear, onSelectQuery, currentQuery }) {
+const PREVIEW_POINTS = 3
+
+function AnswerPreview({ result }) {
+  const { headline, bullets } = parseAnswer(String(result).replace(/`/g, ''))
+  const shown = bullets.slice(0, PREVIEW_POINTS)
+  const more = bullets.length - shown.length
+  return (
+    <div className="history-result">
+      {headline && <p className="history-headline">{headline}</p>}
+      {shown.length > 0 && (
+        <ul className="history-points">
+          {shown.map((point, index) => (
+            <li key={index}>
+              <span>{point}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {more > 0 && <span className="history-more">+{more} more {more === 1 ? 'point' : 'points'}</span>}
+    </div>
+  )
+}
+
+export default function QueryHistory({ history, isOpen, onToggle, onClear, onSelectQuery, currentQuery, showToggle = true }) {
+  const panel = useRef(null)
+  // A closed drawer must not take keyboard focus (React 18 has no inert prop).
+  useEffect(() => {
+    panel.current?.toggleAttribute('inert', !isOpen)
+  }, [isOpen])
+
   const handleClear = () => {
     if (confirm('Clear all query history?')) onClear()
   }
 
   return (
     <>
-      <button
+      {showToggle && <button
         type="button"
         className="history-toggle"
         onClick={onToggle}
@@ -36,11 +68,16 @@ export default function QueryHistory({ history, isOpen, onToggle, onClear, onSel
       >
         {isOpen ? '✕' : '📜'}
         <span className="history-count">{history.length}</span>
-      </button>
+      </button>}
 
-      <div className={`query-history ${isOpen ? 'open' : ''}`}>
+      <div ref={panel} className={`query-history ${isOpen ? 'open' : ''}`} aria-hidden={!isOpen}>
         <div className="history-header">
           <h3>Query History</h3>
+          {!showToggle && (
+            <button type="button" className="clear-history" onClick={onToggle} aria-label="Close history">
+              Close
+            </button>
+          )}
           <button type="button" className="clear-history" onClick={handleClear} disabled={history.length === 0}>
             Clear
           </button>
@@ -58,13 +95,21 @@ export default function QueryHistory({ history, isOpen, onToggle, onClear, onSel
                 key={entry.id}
                 className={`history-item ${entry.query === currentQuery ? 'active' : ''}`}
                 onClick={() => onSelectQuery(entry.query)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    onSelectQuery(entry.query)
+                  }
+                }}
+                role="button"
+                tabIndex={isOpen ? 0 : -1}
               >
                 <div className="history-item-header">
                   <span className="history-tool">{getToolIcon(entry.tool)}</span>
                   <span className="history-time">{formatTime(entry.timestamp)}</span>
                 </div>
                 <div className="history-query">{entry.query}</div>
-                {entry.result && <div className="history-result">{entry.result}...</div>}
+                {entry.result && <AnswerPreview result={entry.result} />}
               </div>
             ))
           )}

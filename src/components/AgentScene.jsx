@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Stars } from '@react-three/drei'
+import { Crosshair, History, Keyboard, Maximize2, Minus, Plus, Route, Share2 } from 'lucide-react'
 import AgentNode from './AgentNode.jsx'
 import ToolNode from './ToolNode.jsx'
 import Connection from './Connection.jsx'
@@ -8,11 +9,8 @@ import ParticleField from './ParticleField.jsx'
 import InfoPanel from './InfoPanel.jsx'
 import DataPacket from './DataPacket.jsx'
 import RunConsole from './RunConsole.jsx'
-import ResponsePanel from './ResponsePanel.jsx'
-import TracePanel from './TracePanel.jsx'
 import SpanInspector from './SpanInspector.jsx'
 import MemorySpace from './MemorySpace.jsx'
-import MemoryStatsPanel from './MemoryStatsPanel.jsx'
 import PlannerTasks from './PlannerTasks.jsx'
 import Atmosphere from './Atmosphere.jsx'
 import CameraRig from './CameraRig.jsx'
@@ -22,10 +20,18 @@ import Shockwave from './Shockwave.jsx'
 import TutorialOverlay from './TutorialOverlay.jsx'
 import QueryHistory from './QueryHistory.jsx'
 import ShareButton from './ShareButton.jsx'
+import GuidedDemo from './GuidedDemo.jsx'
+import Legend from './Legend.jsx'
+import LabelDeconflict from './LabelDeconflict.jsx'
+import RunNarration from './RunNarration.jsx'
+import SiteHeader from './SiteHeader.jsx'
+import { demoById } from '../data/demos.js'
 import { useKeyboardShortcuts, KeyboardShortcutsHelp } from '../hooks/useKeyboardShortcuts.jsx'
 import { useAgentExecution } from '../hooks/useAgentExecution.js'
 import { useQueryHistory } from '../hooks/useQueryHistory.js'
+import { useReducedMotion } from '../hooks/useReducedMotion.js'
 import { playZone } from '../audio/zoneAudio.js'
+import '../styles/observatory.css'
 import {
   NODES,
   TOOLS,
@@ -38,6 +44,24 @@ const nodeById = Object.fromEntries(NODES.map((n) => [n.id, n]))
 const toolById = Object.fromEntries(TOOLS.map((t) => [t.id, t]))
 const positionOf = (id) => (nodeById[id] ?? toolById[id])?.position
 const labelOf = (id) => (nodeById[id] ?? toolById[id])?.label ?? id
+
+const offsetBy = (p, dx, dy, dz = 0) => [p[0] + dx, p[1] + dy, p[2] + dz]
+
+// How far the graph can be turned to either side of the front view (65°, in
+// radians). The pipeline reads left to right, so the orbit stops before the
+// graph turns back to front.
+const MAX_ORBIT = (65 * Math.PI) / 180
+
+// Everything the camera must keep in frame: each node, its label (with some
+// width), and the memory point clouds around the memory node.
+const FIT_POINTS = [
+  ...NODES.flatMap((node) => {
+    const top = node.id === 'memory' ? 2.15 : 1.35
+    return [offsetBy(node.position, 0, -0.9), offsetBy(node.position, -1.1, top), offsetBy(node.position, 1.1, top)]
+  }),
+  ...TOOLS.flatMap((tool) => [offsetBy(tool.position, 0, -0.4), offsetBy(tool.position, -0.8, 0.9), offsetBy(tool.position, 0.8, 0.9)]),
+  ...[[-1.9, 0, 0], [1.8, 0, 0], [0, 1.5, 0], [0, -1.5, 0], [0, 0, 1.4], [0, 0, -1.4]].map(([x, y, z]) => offsetBy(nodeById.memory.position, x, y, z)),
+]
 
 function connectionActive(a, b, activeConnection) {
   if (!activeConnection) return false
@@ -62,17 +86,25 @@ function edgeInfo(a, b) {
   }
 }
 
-function scoreFor(id, confidence) {
-  if (!confidence) return null
-  if (id === 'intent') return confidence.intent
-  if (id === 'toolhub' || toolById[id]) return confidence.tool
-  if (id === 'llm' || id === 'response') return confidence.answer
-  if (id === 'verifier') return confidence.verifier
+// Only the fact-check support rate is measured; the server's other confidence
+// numbers are fixed heuristics, so they are not shown on the map.
+function scoreFor(id, exec) {
+  if (!exec.confidence || !exec.verdicts?.length) return null
+  if (id === 'verifier' || id === 'response') return exec.confidence.verifier
   return null
 }
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char]))
+}
+
+function ToolButton({ label, onClick, pressed, disabled, children, badge }) {
+  return (
+    <button type="button" className="obs-tool" aria-label={label} title={label} onClick={onClick} aria-pressed={pressed} disabled={disabled}>
+      {children}
+      {badge ? <span className="obs-tool-badge">{badge}</span> : null}
+    </button>
+  )
 }
 
 export default function AgentScene() {
@@ -87,6 +119,13 @@ export default function AgentScene() {
   const [shareOpen, setShareOpen] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [prefill, setPrefill] = useState(null)
+  const [demoParam, setDemoParam] = useState(() => new URLSearchParams(window.location.search).get('demo'))
+  const [details, setDetails] = useState(() => localStorage.getItem('observatory_details') === '1')
+  const [follow, setFollow] = useState(() => localStorage.getItem('observatory_follow') === '1')
+  const [fitKey, setFitKey] = useState(0)
+  const [tourKey, setTourKey] = useState(0)
+  const reducedMotion = useReducedMotion()
+  const demoOpen = demoParam !== null
   const lastPacketKey = useRef(null)
   const replayLock = useRef(false)
   const controlsRef = useRef(null)
@@ -101,7 +140,7 @@ export default function AgentScene() {
   const focusId = focusIdFrom(view)
   const zone = focusId ? ZONES[focusId] : null
   const focusPos = focusId ? positionOf(focusId) : null
-  const cameraActive = Boolean(focusPos && (exec.running || frame))
+  const highlighting = Boolean((exec.running || frame) && focusId)
 
   useEffect(() => {
     fetch('/api/memory')
@@ -137,13 +176,13 @@ export default function AgentScene() {
   }, [exec.packetTrigger])
 
   const spawnPacket = (connection, count, duration, key) => {
-    if (!connection) return
+    if (!connection || reducedMotion) return
     const [a, b] = connection
     const from = positionOf(a)
     const to = positionOf(b)
     if (!from || !to) return
     const feedback = a === 'verifier' && b === 'planner'
-    const color = feedback ? '#ff7a8a' : a === 'memory' || b === 'memory' ? '#ff8fd0' : a === 'toolhub' || b === 'toolhub' ? '#ffb168' : '#9fe8ff'
+    const color = feedback ? '#ff7a8a' : (nodeById[b] ?? toolById[b])?.color || '#9fe8ff'
     const spawned = Array.from({ length: count }).map((_, i) => ({
       id: `${key}-${i}-${Math.random()}`,
       from,
@@ -227,7 +266,6 @@ export default function AgentScene() {
     queryInputRef.current?.focus()
   }
 
-  // Keyboard shortcuts
   useKeyboardShortcuts({
     onRun: () => {
       if (!exec.running && queryInputRef.current?.value) {
@@ -247,207 +285,280 @@ export default function AgentScene() {
     onExport: exportMission,
     onShowHelp: () => setShowHelp(true),
     onFocusInput: focusQueryInput,
-    enabled: !inspectOpen // Disable when inspector is open
+    enabled: !inspectOpen,
   })
 
+  const toggleDetails = () => {
+    setDetails((on) => {
+      localStorage.setItem('observatory_details', on ? '0' : '1')
+      return !on
+    })
+  }
+
+  const toggleFollow = () => {
+    setFollow((on) => {
+      localStorage.setItem('observatory_follow', on ? '0' : '1')
+      return !on
+    })
+  }
+
+  const setDemo = (id) => {
+    const url = new URL(window.location.href)
+    if (id === undefined) url.searchParams.delete('demo')
+    else url.searchParams.set('demo', id || '')
+    window.history.replaceState(window.history.state, '', url)
+    setDemoParam(id === undefined ? null : id || '')
+  }
+
+  const dimmedFor = (id) => Boolean(highlighting && focusId !== id)
+
   return (
-    <div className={`canvas-wrap${exec.running ? ' cinematic' : ''}`}>
-      <Canvas camera={{ position: [0, 3, 14], fov: 50 }} gl={{ antialias: true, preserveDrawingBuffer: true }}>
-        <color attach="background" args={['#05070d']} />
-        <fog attach="fog" args={['#05070d', 12, 34]} />
-        <Atmosphere color={zone?.color || null} />
+    <div className={`obs-app${details ? ' details' : ''}`}>
+      <SiteHeader current="/observatory" pinned />
 
-        <ambientLight intensity={0.25} />
-        <directionalLight position={[6, 10, 6]} intensity={0.5} color="#bcd4ff" />
+      <main className="obs-main">
+        <section className={`obs-stage canvas-wrap${exec.running && follow ? ' cinematic' : ''}`} aria-label="3D map of the agent pipeline">
+          <Canvas camera={{ position: [0, 3, 14], fov: 50 }} gl={{ antialias: true, preserveDrawingBuffer: true }} dpr={[1, 2]}>
+            <color attach="background" args={['#05070d']} />
+            <fog attach="fog" args={['#05070d', 18, 48]} />
+            <Atmosphere color={zone?.color || null} />
 
-        <Stars radius={60} depth={30} count={1500} factor={2} fade speed={0.4} />
-        <ParticleField count={400} color={zone?.color || '#7fa8ff'} />
+            <ambientLight intensity={0.25} />
+            <directionalLight position={[6, 10, 6]} intensity={0.5} color="#bcd4ff" />
 
-        {exec.ghostEdges.map((edge, index) => {
-          const from = positionOf(edge[0])
-          const to = positionOf(edge[1])
-          if (!from || !to || sameEdge(edge, view.activeConnection)) return null
-          return <Connection key={`ghost-${index}`} from={from} to={to} ghost />
-        })}
+            <Stars radius={60} depth={30} count={1500} factor={2} fade speed={reducedMotion ? 0 : 0.4} />
+            <ParticleField count={400} color={zone?.color || '#7fa8ff'} />
 
-        {CONNECTIONS.map(([a, b]) => (
-          <Connection
-            key={`${a}-${b}`}
-            from={nodeById[a].position}
-            to={nodeById[b].position}
-            active={connectionActive(a, b, view.activeConnection)}
-            dimmed={exec.running && !connectionActive(a, b, view.activeConnection)}
-            onHover={(over) => setHovered(over ? edgeInfo(a, b) : null)}
+            {exec.ghostEdges.map((edge, index) => {
+              const from = positionOf(edge[0])
+              const to = positionOf(edge[1])
+              if (!from || !to || sameEdge(edge, view.activeConnection)) return null
+              return <Connection key={`ghost-${index}`} from={from} to={to} ghost />
+            })}
+
+            {CONNECTIONS.map(([a, b], index) => (
+              <Connection
+                key={`${a}-${b}`}
+                from={nodeById[a].position}
+                to={nodeById[b].position}
+                color={nodeById[b].color}
+                phase={index / CONNECTIONS.length}
+                reducedMotion={reducedMotion}
+                active={connectionActive(a, b, view.activeConnection)}
+                dimmed={highlighting && !connectionActive(a, b, view.activeConnection)}
+                onHover={(over) => setHovered(over ? edgeInfo(a, b) : null)}
+              />
+            ))}
+
+            {exec.feedbackCount > 0 && (
+              <Connection
+                from={nodeById.verifier.position}
+                to={nodeById.planner.position}
+                active
+                color="#ff7a8a"
+                reducedMotion={reducedMotion}
+                onHover={(over) =>
+                  setHovered(
+                    over
+                      ? {
+                          id: 'feedback-edge',
+                          label: 'VERIFIER → PLANNER',
+                          status: 'FEEDBACK',
+                          description: `The verifier rejected claims and sent the failure back to the planner ${exec.feedbackCount} time(s) in this run.`,
+                          tech: 'Only drawn when a replan actually happened. Retry limit: 2.',
+                        }
+                      : null
+                  )
+                }
+              />
+            )}
+
+            {TOOL_CONNECTIONS.map(([a, b], index) => (
+              <Connection
+                key={`${a}-${b}`}
+                from={nodeById[a].position}
+                to={toolById[b].position}
+                color={toolById[b].color}
+                phase={index / TOOL_CONNECTIONS.length}
+                reducedMotion={reducedMotion}
+                active={connectionActive(a, b, view.activeConnection)}
+                dimmed={highlighting && !connectionActive(a, b, view.activeConnection)}
+                onHover={(over) => setHovered(over ? edgeInfo(a, b) : null)}
+              />
+            ))}
+
+            <MemorySpace
+              center={nodeById.memory.position}
+              trigger={exec.memoryTrigger}
+              memories={memories}
+              litIds={exec.memoryLitIds}
+              onHover={setHovered}
+              onSelect={setSelected}
+            />
+            <QueryOrbits center={nodeById.user.position} memories={memories} onRecall={exec.recall} onHover={setHovered} />
+            <SourceSatellites
+              origin={toolById.web_search.position}
+              sources={exec.sources}
+              onHover={setHovered}
+              onSelect={(source) => {
+                setSelected({
+                  id: source.url,
+                  label: 'SOURCE',
+                  status: source.publishedDate || 'NO DATE ON PAGE',
+                  description: source.title,
+                  tech: source.url,
+                })
+                spawnPacket(['web_search', 'response'], 1, 900, source.url || source.title)
+              }}
+            />
+            <PlannerTasks center={nodeById.planner.position} trigger={exec.plannerTrigger} />
+            <Shockwave position={nodeById.llm.position} token={exec.shockKey} />
+
+            {packets.map((p) => (
+              <DataPacket
+                key={p.id}
+                from={p.from}
+                to={p.to}
+                duration={p.duration}
+                delay={p.delay}
+                color={p.color}
+                onComplete={() => removePacket(p.id)}
+              />
+            ))}
+
+            {NODES.map((node) => (
+              <AgentNode
+                key={node.id}
+                node={node}
+                active={view.activeNodeId === node.id}
+                dimmed={dimmedFor(node.id)}
+                confidence={scoreFor(node.id, exec)}
+                selected={selected?.id === node.id}
+                reducedMotion={reducedMotion}
+                onHover={setHovered}
+                onSelect={setSelected}
+              />
+            ))}
+
+            {TOOLS.map((tool) => (
+              <ToolNode
+                key={tool.id}
+                tool={tool}
+                active={view.activeTool === tool.id}
+                dimmed={dimmedFor(tool.id)}
+                selected={selected?.id === tool.id}
+                reducedMotion={reducedMotion}
+                onHover={setHovered}
+                onSelect={setSelected}
+              />
+            ))}
+
+            <OrbitControls
+              ref={controlsRef}
+              makeDefault
+              enablePan
+              enableZoom
+              enableRotate
+              minDistance={4}
+              maxDistance={28}
+              minAzimuthAngle={-MAX_ORBIT}
+              maxAzimuthAngle={MAX_ORBIT}
+              enableDamping
+              dampingFactor={0.08}
+            />
+            <LabelDeconflict />
+            <CameraRig points={FIT_POINTS} focus={focusPos} follow={follow && exec.running} sway={!exec.running} fitKey={fitKey} reducedMotion={reducedMotion} insetPx={52} />
+          </Canvas>
+
+          <div className="letterbox top" />
+          <div className="letterbox bottom" />
+
+          {zone && highlighting && (
+            <div className="zone-badge" style={{ color: zone.color, borderColor: zone.color }}>
+              {zone.name}
+            </div>
+          )}
+
+          {displayed && <InfoPanel node={displayed} />}
+
+          <Legend />
+
+          <div className="obs-toolbar" role="toolbar" aria-label="View controls">
+            <ToolButton label="Query history (H)" onClick={() => setHistoryOpen(!historyOpen)} pressed={historyOpen} badge={history.length || null}>
+              <History size={16} />
+            </ToolButton>
+            <ToolButton label="Share this run (S)" onClick={handleShare} disabled={!exec.runTrace?.id || exec.running}>
+              <Share2 size={16} />
+            </ToolButton>
+            <span className="obs-tool-sep" aria-hidden="true" />
+            <ToolButton label="Zoom in" onClick={() => zoomBy(0.8)}>
+              <Plus size={16} />
+            </ToolButton>
+            <ToolButton label="Zoom out" onClick={() => zoomBy(1.25)}>
+              <Minus size={16} />
+            </ToolButton>
+            <ToolButton label="Reset the view to fit the whole graph" onClick={() => setFitKey((k) => k + 1)}>
+              <Maximize2 size={16} />
+            </ToolButton>
+            <ToolButton label="Camera follows the active step" onClick={toggleFollow} pressed={follow}>
+              <Crosshair size={16} />
+            </ToolButton>
+            <span className="obs-tool-sep" aria-hidden="true" />
+            <ToolButton label="Replay tour" onClick={() => setTourKey((k) => k + 1)}>
+              <Route size={16} />
+            </ToolButton>
+            <ToolButton label="Keyboard shortcuts (?)" onClick={() => setShowHelp(true)}>
+              <Keyboard size={16} />
+            </ToolButton>
+          </div>
+        </section>
+
+        <RunNarration exec={exec} details={details} onInspect={() => exec.runTrace && setInspectOpen(true)}>
+          {demoOpen && (
+            <GuidedDemo
+              demo={demoById(demoParam)}
+              exec={exec}
+              onPick={(id) => setDemo(id)}
+              onClose={() => setDemo(undefined)}
+              onInspect={() => exec.runTrace && setInspectOpen(true)}
+            />
+          )}
+        </RunNarration>
+
+        <div className="obs-dock">
+          <RunConsole
+            running={exec.running}
+            label={exec.label}
+            onRun={exec.run}
+            awaitingSteer={exec.awaitingSteer}
+            onSteer={exec.steer}
+            frames={exec.frames}
+            onScrub={setScrub}
+            onReplay={replay}
+            soundOn={soundOn}
+            onToggleSound={() => setSoundOn(!soundOn)}
+            onExport={exportMission}
+            canExport={Boolean(exec.response || exec.error)}
+            inputRef={queryInputRef}
+            prefillQuery={prefill}
           />
-        ))}
-
-        {exec.feedbackCount > 0 && (
-          <Connection
-            from={nodeById.verifier.position}
-            to={nodeById.planner.position}
-            active
-            color="#ff7a8a"
-            onHover={(over) =>
-              setHovered(
-                over
-                  ? {
-                      id: 'feedback-edge',
-                      label: 'VERIFIER → PLANNER',
-                      status: 'FEEDBACK',
-                      description: `The verifier rejected claims and sent the failure back to the planner ${exec.feedbackCount} time(s) in this run.`,
-                      tech: 'Only drawn when a replan actually happened. Retry limit: 2.',
-                    }
-                  : null
-              )
-            }
-          />
-        )}
-
-        {TOOL_CONNECTIONS.map(([a, b]) => (
-          <Connection
-            key={`${a}-${b}`}
-            from={nodeById[a].position}
-            to={toolById[b].position}
-            active={connectionActive(a, b, view.activeConnection)}
-            dimmed={exec.running && !connectionActive(a, b, view.activeConnection)}
-            color="#ffb168"
-            onHover={(over) => setHovered(over ? edgeInfo(a, b) : null)}
-          />
-        ))}
-
-        <MemorySpace
-          center={nodeById.memory.position}
-          trigger={exec.memoryTrigger}
-          memories={memories}
-          litIds={exec.memoryLitIds}
-          onHover={setHovered}
-          onSelect={setSelected}
-        />
-        <QueryOrbits center={nodeById.user.position} memories={memories} onRecall={exec.recall} onHover={setHovered} />
-        <SourceSatellites
-          origin={toolById.web_search.position}
-          sources={exec.sources}
-          onHover={setHovered}
-          onSelect={(source) => {
-            setSelected({
-              id: source.url,
-              label: 'SOURCE',
-              status: source.publishedDate || 'NO DATE ON PAGE',
-              description: source.title,
-              tech: source.url,
-            })
-            spawnPacket([ 'web_search', 'response' ], 1, 900, source.url || source.title)
-          }}
-        />
-        <PlannerTasks center={nodeById.planner.position} trigger={exec.plannerTrigger} />
-        <Shockwave position={nodeById.llm.position} token={exec.shockKey} />
-
-        {packets.map((p) => (
-          <DataPacket
-            key={p.id}
-            from={p.from}
-            to={p.to}
-            duration={p.duration}
-            delay={p.delay}
-            color={p.color}
-            onComplete={() => removePacket(p.id)}
-          />
-        ))}
-
-        {NODES.map((node) => (
-          <AgentNode
-            key={node.id}
-            node={node}
-            active={view.activeNodeId === node.id}
-            dimmed={Boolean(exec.running && focusId && focusId !== node.id)}
-            confidence={scoreFor(node.id, exec.confidence)}
-            selected={selected?.id === node.id}
-            onHover={setHovered}
-            onSelect={setSelected}
-          />
-        ))}
-
-        {TOOLS.map((tool) => (
-          <ToolNode
-            key={tool.id}
-            tool={tool}
-            active={view.activeTool === tool.id}
-            dimmed={Boolean(exec.running && focusId && focusId !== tool.id)}
-            selected={selected?.id === tool.id}
-            onHover={setHovered}
-            onSelect={setSelected}
-          />
-        ))}
-
-        <OrbitControls
-          ref={controlsRef}
-          makeDefault
-          enablePan
-          enableZoom
-          enableRotate
-          minDistance={5}
-          maxDistance={28}
-          autoRotate={!cameraActive}
-          autoRotateSpeed={0.3}
-          enableDamping
-          dampingFactor={0.08}
-        />
-        <CameraRig focus={focusPos} active={cameraActive} />
-      </Canvas>
-
-      <div className="letterbox top" />
-      <div className="letterbox bottom" />
-
-      <div className="zoom-controls">
-        <button type="button" aria-label="Zoom in" onClick={() => zoomBy(0.8)}>+</button>
-        <button type="button" aria-label="Zoom out" onClick={() => zoomBy(1.25)}>−</button>
-      </div>
-
-      {zone && (
-        <div className="zone-badge" style={{ color: zone.color, borderColor: zone.color }}>
-          {zone.name}
+          <div className="view-toggle">
+            <button type="button" onClick={toggleDetails} aria-pressed={details} title="Show or hide the live event log and memory stats">
+              {details ? 'Simple view' : 'Show technical details'}
+            </button>
+            {exec.runTrace && !exec.running && (
+              <button type="button" onClick={() => setInspectOpen(true)}>Inspect run</button>
+            )}
+            {!demoOpen && (
+              <button type="button" onClick={() => setDemo(null)}>Break it yourself</button>
+            )}
+          </div>
         </div>
-      )}
-
-      {displayed && <InfoPanel node={displayed} />}
-
-      {exec.memoryStats && <MemoryStatsPanel stats={exec.memoryStats} />}
-
-      <RunConsole
-        running={exec.running}
-        label={exec.label}
-        onRun={exec.run}
-        awaitingSteer={exec.awaitingSteer}
-        onSteer={exec.steer}
-        frames={exec.frames}
-        onScrub={setScrub}
-        onReplay={replay}
-        soundOn={soundOn}
-        onToggleSound={() => setSoundOn(!soundOn)}
-        onExport={exportMission}
-        canExport={Boolean(exec.response || exec.error)}
-        inputRef={queryInputRef}
-        prefillQuery={prefill}
-      />
-
-      <ResponsePanel
-        response={exec.running ? null : exec.response}
-        error={exec.running ? null : exec.error}
-        sources={exec.running ? [] : exec.sources}
-        asOf={exec.asOf}
-        verdicts={exec.verdicts}
-      />
-
-      <TracePanel
-        trace={exec.trace}
-        running={exec.running}
-        canInspect={Boolean(exec.runTrace) && !exec.running}
-        onInspect={() => setInspectOpen(true)}
-      />
+      </main>
 
       {inspectOpen && exec.runTrace && <SpanInspector trace={exec.runTrace} onClose={() => setInspectOpen(false)} />}
 
-      <TutorialOverlay />
+      <TutorialOverlay suppressed={demoOpen} replayKey={tourKey} />
 
       <QueryHistory
         history={history}
@@ -456,6 +567,7 @@ export default function AgentScene() {
         onClear={clearHistory}
         onSelectQuery={handleSelectQuery}
         currentQuery={exec.query}
+        showToggle={false}
       />
 
       {exec.runTrace?.id && (
@@ -465,13 +577,11 @@ export default function AgentScene() {
           disabled={exec.running}
           isOpen={shareOpen}
           onOpenChange={setShareOpen}
+          showButton={false}
         />
       )}
 
-      <KeyboardShortcutsHelp 
-        isOpen={showHelp}
-        onClose={() => setShowHelp(false)}
-      />
+      <KeyboardShortcutsHelp isOpen={showHelp} onClose={() => setShowHelp(false)} />
     </div>
   )
 }

@@ -1,13 +1,27 @@
-// Central definition of the 7 core nodes in the agent pipeline.
+// Central definition of the 8 pipeline nodes and 4 tools (12 in total).
 // Positions are laid out as a 3D network (not a flat line) so the
 // architecture reads as infrastructure rather than a flowchart.
 
-export const NODES = [
+// One colour per role; nodes take their colour from their role so the
+// legend is always accurate. Red is reserved for the retry edge and failures.
+export const ROLES = [
+  { id: 'input', label: 'Input', hint: 'Your question and what it is asking for', color: '#6ea8ff' },
+  { id: 'planning', label: 'Planning', hint: 'Decides the steps and which tool to use', color: '#a78bff' },
+  { id: 'memory', label: 'Memory', hint: 'Answers from earlier runs (pgvector)', color: '#ff8fd0' },
+  { id: 'tools', label: 'Tools', hint: 'Web search, database, calculator, text analysis', color: '#ffb168' },
+  { id: 'reasoning', label: 'Reasoning', hint: 'The language model writes the answer', color: '#5ee6c8' },
+  { id: 'verification', label: 'Fact-check', hint: 'Checks every claim against the sources', color: '#ffe27a' },
+  { id: 'output', label: 'Output', hint: 'The final answer', color: '#9fe870' },
+]
+
+export const ROLE_COLOR = Object.fromEntries(ROLES.map((role) => [role.id, role.color]))
+
+const BASE_NODES = [
   {
     id: 'user',
     label: 'USER',
     position: [-7, 2.2, 3],
-    color: '#6ea8ff',
+    role: 'input',
     description: 'The human entry point that issues a natural-language request into the agent system.',
     status: 'IDLE',
     tech: 'Captures raw input and forwards it as an unstructured request payload to Intent Detection.',
@@ -15,8 +29,9 @@ export const NODES = [
   {
     id: 'intent',
     label: 'INTENT DETECTION',
+    short: 'INTENT',
     position: [-4, 0.6, 5.2],
-    color: '#8fd3ff',
+    role: 'input',
     description: 'Classifies what the user actually wants — the task type behind the words.',
     status: 'IDLE',
     tech: 'Runs a lightweight classification pass (embedding similarity or small LLM call) to tag intent + extract slots.',
@@ -25,7 +40,7 @@ export const NODES = [
     id: 'planner',
     label: 'PLANNER',
     position: [-1, -0.4, 2.5],
-    color: '#a78bff',
+    role: 'planning',
     description: 'Breaks the intent into an ordered sequence of executable steps.',
     status: 'IDLE',
     tech: 'Produces a directed task graph, deciding which tools and context sources are needed, and in what order.',
@@ -34,7 +49,7 @@ export const NODES = [
     id: 'toolhub',
     label: 'TOOL HUB',
     position: [2.2, -0.6, 4.6],
-    color: '#ffb168',
+    role: 'tools',
     description: 'Central orchestrator that routes planner steps to the right external tool.',
     status: 'IDLE',
     tech: 'Dispatches function-calling requests to registered tools via schema-validated input/output contracts.',
@@ -43,7 +58,7 @@ export const NODES = [
     id: 'memory',
     label: 'MEMORY',
     position: [0.5, 1.6, -2.4],
-    color: '#ff8fd0',
+    role: 'memory',
     description: 'Long-term vector store holding prior conversations, documents, and user context.',
     status: 'IDLE',
     tech: 'Performs embedding similarity search (top-K retrieval) over a vector index to assemble relevant context.',
@@ -51,8 +66,9 @@ export const NODES = [
   {
     id: 'llm',
     label: 'LLM / REASONING ENGINE',
+    short: 'LLM',
     position: [4.4, 1.8, -0.4],
-    color: '#6effc7',
+    role: 'reasoning',
     description: 'The core model that reasons over assembled context to produce a decision or answer.',
     status: 'IDLE',
     tech: 'Receives an assembled context window (system + query + memory + tool results) and generates the output.',
@@ -61,7 +77,7 @@ export const NODES = [
     id: 'verifier',
     label: 'VERIFIER',
     position: [6.0, 2.3, 1.15],
-    color: '#d7c4ff',
+    role: 'verification',
     description: 'A second pass that checks each bullet against the retrieved sources.',
     status: 'IDLE',
     tech: 'Marks a claim supported only when the same fact appears in a source the tool just retrieved.',
@@ -70,68 +86,83 @@ export const NODES = [
     id: 'response',
     label: 'RESPONSE',
     position: [7.6, 2.7, 2.8],
-    color: '#6effc7',
+    role: 'output',
     description: 'The final answer delivered back to the user.',
     status: 'IDLE',
     tech: 'Formats and streams the model output back through the interface to the originating request.',
   },
 ]
 
+export const NODES = BASE_NODES.map((node) => ({ ...node, color: ROLE_COLOR[node.role] }))
+
 export const TOOLS = [
   {
     id: 'web_search',
     label: 'WEB SEARCH',
+    short: 'WEB',
     parent: 'toolhub',
     position: [4.6, -2.4, 7.4],
-    color: '#ffb168',
+    role: 'tools',
+    color: ROLE_COLOR.tools,
   },
   {
     id: 'database',
     label: 'DATABASE',
     parent: 'toolhub',
     position: [1.0, -2.8, 7.0],
-    color: '#ffb168',
+    role: 'tools',
+    color: ROLE_COLOR.tools,
   },
   {
     id: 'calculator',
     label: 'CALCULATOR',
     parent: 'toolhub',
     position: [3.4, -3.4, 3.2],
-    color: '#ffb168',
+    role: 'tools',
+    color: ROLE_COLOR.tools,
   },
   {
     id: 'external_api',
     label: 'EXTERNAL API',
+    short: 'TEXT API',
     parent: 'toolhub',
     position: [0.2, -3.2, 3.6],
-    color: '#ffb168',
+    role: 'tools',
+    color: ROLE_COLOR.tools,
   },
 ]
 
-// Main pipeline edges, in execution order.
+// Main pipeline edges, in the order the server runs them: memory is
+// searched before the tool is called (see the span order in /api/agent).
 export const CONNECTIONS = [
   ['user', 'intent'],
   ['intent', 'planner'],
-  ['planner', 'toolhub'],
-  ['toolhub', 'memory'],
-  ['memory', 'llm'],
+  ['planner', 'memory'],
+  ['memory', 'toolhub'],
+  ['toolhub', 'llm'],
   ['llm', 'verifier'],
   ['verifier', 'response'],
 ]
 
 export const TOOL_CONNECTIONS = TOOLS.map((t) => [t.parent, t.id])
 
-export const ZONES = {
-  user: { name: 'User space', color: '#6ea8ff' },
-  intent: { name: 'Intent space', color: '#8fd3ff' },
-  planner: { name: 'Planner space', color: '#a78bff' },
-  toolhub: { name: 'Tool space', color: '#ffb168' },
-  web_search: { name: 'Tool space · Web search', color: '#ffb168' },
-  database: { name: 'Tool space · Database', color: '#ffb168' },
-  calculator: { name: 'Tool space · Calculator', color: '#ffb168' },
-  external_api: { name: 'Tool space · External API', color: '#ffb168' },
-  memory: { name: 'Memory space', color: '#ff8fd0' },
-  llm: { name: 'Reasoning space', color: '#6effc7' },
-  verifier: { name: 'Verifier space', color: '#d7c4ff' },
-  response: { name: 'Response space', color: '#6effc7' },
+const ZONE_NAMES = {
+  user: 'User space',
+  intent: 'Intent space',
+  planner: 'Planner space',
+  toolhub: 'Tool space',
+  web_search: 'Tool space · Web search',
+  database: 'Tool space · Database',
+  calculator: 'Tool space · Calculator',
+  external_api: 'Tool space · External API',
+  memory: 'Memory space',
+  llm: 'Reasoning space',
+  verifier: 'Verifier space',
+  response: 'Response space',
 }
+
+const roleOf = (id) => BASE_NODES.find((node) => node.id === id)?.role || 'tools'
+
+export const ZONES = Object.fromEntries(
+  Object.entries(ZONE_NAMES).map(([id, name]) => [id, { name, color: ROLE_COLOR[roleOf(id)] }])
+)

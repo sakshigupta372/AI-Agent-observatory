@@ -94,6 +94,7 @@ export default function RunConsole({
           type="text"
           placeholder="Ask the AI Agent something..."
           value={query}
+          maxLength={4000}
           onChange={(e) => setQuery(e.target.value)}
           disabled={running}
         />

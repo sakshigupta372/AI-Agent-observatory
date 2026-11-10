@@ -48,7 +48,7 @@ export function addUsage(meter, usage) {
   meter.calls += 1
 }
 
-export function createTracer({ query: text, config, injected }) {
+export function createTracer({ query: text, config, injected, onSpan = null }) {
   const id = randomUUID()
   const origin = performance.now()
   const meter = createMeter()
@@ -73,6 +73,7 @@ export function createTracer({ query: text, config, injected }) {
       completionTokens: 0,
     }
     spans.push(record)
+    onSpan?.('start', record)
     try {
       const result = await fn(record)
       return result
@@ -85,6 +86,7 @@ export function createTracer({ query: text, config, injected }) {
       record.promptTokens = meter.promptTokens - before.prompt
       record.completionTokens = meter.completionTokens - before.completion
       if (record.output != null) record.output = clip(record.output)
+      onSpan?.('end', record)
     }
   }
 
@@ -241,7 +243,10 @@ export async function traceAnalytics() {
             coalesce(sum(prompt_tokens), 0)::int AS prompt_tokens,
             coalesce(sum(completion_tokens), 0)::int AS completion_tokens,
             coalesce(sum(est_cost_usd), 0)::float AS cost,
-            coalesce(sum(replans), 0)::int AS replans
+            coalesce(sum(replans), 0)::int AS replans,
+            coalesce(sum(claims), 0)::int AS claims,
+            coalesce(sum(claims_supported), 0)::int AS claims_supported,
+            count(*) FILTER (WHERE replans > 0 AND status = 'ok')::int AS recovered_after_replan
        FROM traces`
   )
   const stages = await query(

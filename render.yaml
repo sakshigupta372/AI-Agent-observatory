@@ -23,3 +23,10 @@ services:
       # Marks eval-runner traces as public on /traces. Must match the key used locally.
       - key: EVAL_KEY
         sync: false
+      # Abuse and spend limits for /api/agent. Eval-runner requests are exempt.
+      - key: RUNS_PER_10_MIN
+        value: "10"
+      - key: ROUTES_PER_10_MIN
+        value: "30"
+      - key: DAILY_RUN_CAP
+        value: "300"

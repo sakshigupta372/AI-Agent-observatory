@@ -1,21 +1,25 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Text, Billboard } from '@react-three/drei'
 import * as THREE from 'three'
+import NodeLabel from './NodeLabel.jsx'
+
+const LABEL_OFFSET = [0, 0.62, 0]
 
 // Smaller satellite node representing one tool branching off the Tool Hub.
-export default function ToolNode({ tool, active, dimmed, onHover, onSelect, selected }) {
+export default function ToolNode({ tool, label, active, dimmed, onHover, onSelect, selected, reducedMotion = false }) {
   const mesh = useRef()
   const [hovered, setHovered] = useState(false)
-  const color = new THREE.Color(tool.color)
+  const color = useMemo(() => new THREE.Color(tool.color), [tool.color])
+  const scaleTarget = useMemo(() => new THREE.Vector3(), [])
 
   useFrame((state, delta) => {
-    if (mesh.current) {
-      mesh.current.rotation.y += delta * (active ? 1 : 0.2)
-      const targetScale = hovered || selected ? 1.25 : 1
-      mesh.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.2)
-    }
+    if (!mesh.current) return
+    if (!reducedMotion) mesh.current.rotation.y += delta * (active ? 1 : 0.2)
+    const s = hovered || selected ? 1.25 : active ? 1.15 : 1
+    mesh.current.scale.lerp(scaleTarget.set(s, s, s), 0.2)
   })
+
+  const labelState = active ? 'active' : hovered || selected ? 'hover' : dimmed ? 'dim' : 'idle'
 
   return (
     <group
@@ -49,11 +53,7 @@ export default function ToolNode({ tool, active, dimmed, onHover, onSelect, sele
         />
       </mesh>
       <pointLight color={color} intensity={active ? 1.8 : dimmed ? 0.08 : 0.4} distance={2.4} decay={2} />
-      <Billboard position={[0, 0.55, 0]}>
-        <Text fontSize={0.14} color={hovered || active ? '#ffffff' : '#8a97b5'} anchorX="center" anchorY="middle">
-          {tool.label}
-        </Text>
-      </Billboard>
+      <NodeLabel text={label ?? tool.label} short={tool.short} offset={LABEL_OFFSET} state={labelState} tool />
     </group>
   )
 }

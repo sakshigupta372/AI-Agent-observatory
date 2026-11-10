@@ -1,5 +1,6 @@
 import { classify } from '../../data/scenarios.js'
 import { addMemory, listMemories, searchCustomers, searchMemories } from '../../server/memoryStore.js'
+import { checkLimits, clientIp } from '../../server/rateLimit.js'
 import { addUsage, createTracer, isEvalRequest, saveTrace } from '../../server/traces.js'
 
 const GROQ_API_KEY = import.meta.env.GROQ_API_KEY
@@ -19,11 +20,23 @@ function todayLabel() {
   }).format(new Date())
 }
 
-function json(body, status = 200) {
+function json(body, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...extraHeaders },
   })
+}
+
+const MAX_BODY_BYTES = 64 * 1024
+const MAX_QUERY_CHARS = 4000
+
+// Models sometimes put a no-break or narrow no-break space (U+202F) after the
+// dash; trim() and \s cover those, a literal '- ' check does not.
+function claimLines(response) {
+  return String(response)
+    .split('\n')
+    .map((line) => line.trim().match(/^-\s+(.*)$/)?.[1]?.trim())
+    .filter(Boolean)
 }
 
 function isFreshQuery(query) {
@@ -41,9 +54,10 @@ function datedQuery(query) {
 const RETRY_STATUS = new Set([429, 500, 502, 503, 529])
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
-// Groq asks callers to back off exponentially on 429/503, so one slow
-// retry is better than surfacing a capacity blip as a failed run.
-async function groqFetch(body, attempts = 3) {
+// Groq asks callers to back off exponentially on 429/503 and usually says how
+// long to wait, so a few patient retries beat surfacing a capacity blip as a
+// degraded run.
+async function groqFetch(body, attempts = 5) {
   if (!GROQ_API_KEY) throw new Error('GROQ_API_KEY is not set')
   let lastDetail = ''
   let lastStatus = 0
@@ -56,13 +70,15 @@ async function groqFetch(body, attempts = 3) {
         Authorization: `Bearer ${GROQ_API_KEY}`,
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(body.stream ? 60_000 : 30_000),
     })
     if (res.ok) return res
 
     lastStatus = res.status
     lastDetail = await res.text()
     if (!RETRY_STATUS.has(res.status) || attempt === attempts - 1) break
-    await sleep(600 * 2 ** attempt)
+    const retryAfter = Number(res.headers.get('retry-after'))
+    await sleep(Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter * 1000, 8000) : 1000 * 2 ** attempt)
   }
 
   const capacity = lastStatus === 503 || lastStatus === 429
@@ -560,11 +576,7 @@ async function streamGroq(messages, onDelta, meter = null) {
 }
 
 function localVerdicts(response, sources) {
-  const bullets = String(response)
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line.startsWith('- '))
-    .map((line) => line.slice(2))
+  const bullets = claimLines(response)
   const haystack = sources.map((source) => `${source.title} ${source.content} ${source.publishedDate}`).join(' ').toLowerCase()
   return bullets.map((text) => {
     if (!sources.length) return { text, supported: true, note: 'Checked against the computed result' }
@@ -706,18 +718,63 @@ async function planRetry({ query, reason, unsupported, sources, meter }) {
   }
 }
 
+// Compact per-step facts for the live narration; full detail stays in the stored trace.
+function stepSummary(output) {
+  if (!output || typeof output !== 'object') return null
+  const pick = {}
+  for (const key of ['hits', 'sourceCount', 'relevance', 'supported', 'via', 'chars', 'tool', 'usedModel']) {
+    if (output[key] !== undefined) pick[key] = output[key]
+  }
+  if (Array.isArray(output.unsupported)) pick.unsupported = output.unsupported.length
+  if (Array.isArray(output.rows)) pick.rows = output.rows.length
+  if (Array.isArray(output.verdicts)) pick.claims = output.verdicts.length
+  return pick
+}
+
+function stepEvent(phase, record) {
+  return {
+    type: 'step',
+    phase,
+    name: record.name,
+    kind: record.kind,
+    attempt: record.attempt,
+    status: record.status,
+    ms: phase === 'end' ? record.durationMs : null,
+    error: record.error ? String(record.error).slice(0, 220) : null,
+    summary: phase === 'end' ? stepSummary(record.output) : null,
+  }
+}
+
 const supportRate = (verdicts) => (verdicts.length ? verdicts.filter((item) => item.supported).length / verdicts.length : 1)
 
-export async function POST({ request, locals }) {
+export async function POST({ request, locals, clientAddress }) {
+  if (Number(request.headers.get('content-length') || 0) > MAX_BODY_BYTES) {
+    return json({ error: 'Request body is too large' }, 413)
+  }
   let body
   try {
-    body = await request.json()
+    const raw = await request.text()
+    if (raw.length > MAX_BODY_BYTES) return json({ error: 'Request body is too large' }, 413)
+    body = JSON.parse(raw)
   } catch {
     return json({ error: 'Invalid JSON body' }, 400)
   }
 
   const query = typeof body?.query === 'string' ? body.query.trim() : ''
   if (!query) return json({ error: 'Missing query' }, 400)
+  if (query.length > MAX_QUERY_CHARS) {
+    return json({ error: `Questions are limited to ${MAX_QUERY_CHARS} characters (this one has ${query.length}).` }, 400)
+  }
+
+  const evalRun = isEvalRequest(request)
+  if (!evalRun) {
+    const limited = checkLimits({
+      phase: body?.phase === 'route' ? 'route' : 'execute',
+      ip: clientIp(request, clientAddress),
+      visitorId: locals?.visitorId || null,
+    })
+    if (limited) return json({ error: limited.error }, 429, { 'Retry-After': String(limited.retryAfter) })
+  }
 
   if (body?.phase === 'route') {
     const routeStarted = performance.now()
@@ -731,11 +788,11 @@ export async function POST({ request, locals }) {
   const plan = sanitizePlan(body?.plan, query)
   if (isFreshQuery(query) && !plan.steered) plan.tool = 'web_search'
   const config = normalizeConfig(body?.config)
-  const owner = isEvalRequest(request) ? 'eval' : locals?.visitorId || null
+  const owner = evalRun ? 'eval' : locals?.visitorId || null
   const inject = INJECTIONS.has(body?.inject) && plan.tool === 'web_search' ? body.inject : null
 
   return sse(async (send) => {
-    const tracer = createTracer({ query, config, injected: inject })
+    const tracer = createTracer({ query, config, injected: inject, onSpan: (phase, record) => send(stepEvent(phase, record)) })
     const { meter, span } = tracer
 
     const finish = async ({ status, error = null, response = null, sources = [], verdicts = [], retrieved = [], searchWindow = null, timings, attempts, replans }) => {
@@ -965,7 +1022,7 @@ export async function POST({ request, locals }) {
         verdicts = await span(
           'verification',
           'verifier',
-          { claims: String(response).split('\n').filter((line) => line.trim().startsWith('- ')).length, sourceCount: toolResult.sources.length },
+          { claims: claimLines(response).length, sourceCount: toolResult.sources.length },
           async (rec) => {
             const checked = await verify(response, toolResult.sources, meter)
             const result = checked.verdicts
