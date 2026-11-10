@@ -36,7 +36,7 @@
   color: #6f7da0;
 }
 
-.tv-metric.good b { color: #6effc7; }
+.tv-metric.good b { color: var(--green); }
 .tv-metric.warn b { color: #ffd37a; }
 .tv-metric.bad b { color: #ff8fa3; }
 
@@ -142,7 +142,7 @@
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 1.2px;
-  color: #7fd9ff;
+  color: var(--ink);
   text-transform: uppercase;
 }
 
@@ -194,6 +194,6 @@
 }
 
 .tv-plain.failed {
-  border-left-color: #ff6b86;
+  border-left-color: var(--red);
   background: rgba(255, 107, 134, 0.06);
 }

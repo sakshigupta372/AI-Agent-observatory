@@ -6,7 +6,7 @@ import NodeLabel from './NodeLabel.jsx'
 const LABEL_OFFSET = [0, 0.62, 0]
 
 // Smaller satellite node representing one tool branching off the Tool Hub.
-export default function ToolNode({ tool, label, active, dimmed, onHover, onSelect, selected, reducedMotion = false }) {
+export default function ToolNode({ tool, label, short, active, dimmed, onHover, onSelect, selected, reducedMotion = false }) {
   const mesh = useRef()
   const [hovered, setHovered] = useState(false)
   const color = useMemo(() => new THREE.Color(tool.color), [tool.color])
@@ -53,7 +53,7 @@ export default function ToolNode({ tool, label, active, dimmed, onHover, onSelec
         />
       </mesh>
       <pointLight color={color} intensity={active ? 1.8 : dimmed ? 0.08 : 0.4} distance={2.4} decay={2} />
-      <NodeLabel text={label ?? tool.label} short={tool.short} offset={LABEL_OFFSET} state={labelState} tool />
+      <NodeLabel text={label ?? tool.label} short={short} offset={LABEL_OFFSET} state={labelState} tool />
     </group>
   )
 }

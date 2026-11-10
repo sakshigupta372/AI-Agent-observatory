@@ -9,7 +9,7 @@ export default function NodeLabel({ text, short, offset, state = 'idle', score =
       <span className={`node-label ${state}${tool ? ' tool' : ''}`}>
         <span className={short ? 'full' : undefined}>{text}</span>
         {short && <span className="short" aria-hidden="true">{short}</span>}
-        {score != null && <b title="Share of claims backed by the sources">{score}%</b>}
+        {score != null && <b title="Claims backed by the sources">{score}</b>}
       </span>
     </Html>
   )

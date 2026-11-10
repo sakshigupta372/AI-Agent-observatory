@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
-import { EXAMPLE_PROMPTS } from '../data/scenarios.js'
+import { Download, Volume2, VolumeX } from 'lucide-react'
+import { EXAMPLE_CHIPS } from '../data/scenarios.js'
+import { INJECTIONS } from '../data/labels.js'
 
 const STEER_TOOLS = [
   ['web_search', 'Web'],
@@ -8,13 +10,6 @@ const STEER_TOOLS = [
   ['external_api', 'Document'],
 ]
 
-const INJECTIONS = [
-  ['', 'No failure'],
-  ['hallucinated_claim', 'Inject: fake claim'],
-  ['irrelevant_retrieval', 'Inject: wrong sources'],
-  ['empty_retrieval', 'Inject: empty search'],
-  ['tool_timeout', 'Inject: tool timeout'],
-]
 
 export default function RunConsole({
   running,
@@ -31,6 +26,8 @@ export default function RunConsole({
   canExport,
   inputRef,
   prefillQuery,
+  onBreakIt,
+  children,
 }) {
   const [query, setQuery] = useState('')
   const [inject, setInject] = useState('')
@@ -93,33 +90,52 @@ export default function RunConsole({
           ref={inputRef}
           type="text"
           placeholder="Ask the AI Agent something..."
+          aria-label="Your question"
           value={query}
           maxLength={4000}
           onChange={(e) => setQuery(e.target.value)}
           disabled={running}
         />
-        <select className="inject-select" value={inject} onChange={(e) => setInject(e.target.value)} disabled={running} title="Force a failure so you can watch the verifier and replanner react">
-          {INJECTIONS.map(([value, name]) => (
-            <option key={value} value={value}>{name}</option>
-          ))}
-        </select>
-        <button type="button" className={soundOn ? 'on' : ''} onClick={onToggleSound}>
-          {soundOn ? 'Sound on' : 'Sound'}
+        <label className={`inject-field${inject ? ' armed' : ''}`} title="Force a failure so you can watch the fact-check and retry react">
+          <span>Inject a failure</span>
+          <select className="inject-select" value={inject} onChange={(e) => setInject(e.target.value)} disabled={running}>
+            {INJECTIONS.map((option) => (
+              <option key={option.value} value={option.value} title={option.hint}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button type="submit" className="btn-primary run-btn" disabled={running || !query.trim()}>
+          {running ? 'Running…' : 'Run Agent'}
         </button>
-        <button type="button" onClick={onExport} disabled={!canExport}>
-          Export
-        </button>
-        <button type="submit" disabled={running || !query.trim()}>
-          {running ? 'Running...' : 'Run Agent'}
-        </button>
+        {onBreakIt && (
+          <button type="button" className="btn-ghost break-btn" onClick={onBreakIt}>
+            Break it yourself
+          </button>
+        )}
       </form>
 
-      <div className="example-chips">
-        {EXAMPLE_PROMPTS.map((p) => (
-          <button key={p} type="button" disabled={running} onClick={() => onRun(p, { inject: inject || undefined })}>
-            {p}
+      <div className="console-row">
+        <div className="example-chips" role="group" aria-label="Example questions">
+          <span className="chips-label">Try</span>
+          {EXAMPLE_CHIPS.map((chip) => (
+            <button key={chip.prompt} type="button" disabled={running} title={chip.prompt} onClick={() => onRun(chip.prompt, { inject: inject || undefined })}>
+              {chip.label}
+            </button>
+          ))}
+        </div>
+        <div className="console-actions">
+          {children}
+          <button type="button" className={`btn-ghost icon-btn${soundOn ? ' on' : ''}`} onClick={onToggleSound} aria-pressed={soundOn} title={soundOn ? 'Turn sound off' : 'Turn sound on'}>
+            {soundOn ? <Volume2 size={15} aria-hidden="true" /> : <VolumeX size={15} aria-hidden="true" />}
+            <span>Sound</span>
           </button>
-        ))}
+          <button type="button" className="btn-ghost icon-btn" onClick={onExport} disabled={!canExport} title="Download this run as an HTML report">
+            <Download size={15} aria-hidden="true" />
+            <span>Export</span>
+          </button>
+        </div>
       </div>
     </div>
   )

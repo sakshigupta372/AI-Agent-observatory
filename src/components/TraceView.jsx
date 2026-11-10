@@ -1,27 +1,18 @@
 import { useState } from 'react'
 import '../styles/traceview.css'
+import { stepName, toolName } from '../data/labels.js'
+
+export { stepName, toolName }
 
 const KIND_COLOR = {
-  planner: '#a78bff',
-  memory: '#ff8fd0',
-  tool: '#ffb168',
-  llm: '#6effc7',
-  verifier: '#d7c4ff',
+  planner: '#a87612',
+  memory: '#7d5f9e',
+  tool: '#b8551f',
+  llm: '#357a66',
+  verifier: '#4a689b',
 }
 
 export const STATUS_PLAIN = { ok: 'answered', degraded: 'answered with fallback', failed: 'failed' }
-
-const STEP_PLAIN = {
-  plan: 'Plan',
-  memory_retrieval: 'Memory lookup',
-  reasoning: 'Write answer',
-  verification: 'Fact-check',
-  replan: 'Retry plan',
-  'tool:web_search': 'Web search',
-  'tool:calculator': 'Calculator',
-  'tool:database': 'Customer database',
-  'tool:external_api': 'Text analysis',
-}
 
 const TOOL_PLAIN = {
   web_search: 'web search',
@@ -37,8 +28,6 @@ const INJECT_PLAIN = {
   tool_timeout: 'a tool timeout',
 }
 
-export const stepName = (name) => STEP_PLAIN[name] || name
-export const toolName = (tool) => STEP_PLAIN[`tool:${tool}`] || tool
 
 // One short paragraph a non-engineer can read before the detailed timeline.
 export function describeRun(trace) {
@@ -143,7 +132,7 @@ export default function TraceView({ trace }) {
                     style={{
                       left: `${left}%`,
                       width: `${width}%`,
-                      background: span.status === 'error' ? '#ff6b86' : KIND_COLOR[span.kind] || '#7fd9ff',
+                      background: span.status === 'error' ? '#c4321c' : KIND_COLOR[span.kind] || '#6b645b',
                     }}
                   />
                 </span>

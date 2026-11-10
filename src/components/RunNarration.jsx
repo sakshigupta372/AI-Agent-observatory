@@ -3,6 +3,8 @@ import { NODES, TOOLS } from '../data/agentArchitecture.js'
 import ResponsePanel from './ResponsePanel.jsx'
 import TracePanel from './TracePanel.jsx'
 import MemoryStatsPanel from './MemoryStatsPanel.jsx'
+import FlowDiagram from './FlowDiagram.jsx'
+import { AGENT_FLOW } from '../data/flows.js'
 
 const COLOR = Object.fromEntries([...NODES, ...TOOLS].map((item) => [item.id, item.color]))
 const MARK = { live: '', ok: '✓', warn: '!', failed: '✕' }
@@ -13,13 +15,8 @@ const formatMs = (ms) => (ms == null ? '' : ms >= 1000 ? `${(ms / 1000).toFixed(
 function Intro() {
   return (
     <div className="narr-intro">
-      <p>Ask a question below. Each step the agent takes is explained here while it happens, and lights up in the 3D map.</p>
-      <ol>
-        <li><b>Understand</b> the question and plan</li>
-        <li><b>Look up</b> memory, then use a tool such as web search</li>
-        <li><b>Write</b> an answer and <b>fact-check</b> every claim</li>
-        <li><b>Retry</b> with a better search if the check fails</li>
-      </ol>
+      <p>Ask a question. Each step lights up here and in the 3D map.</p>
+      <FlowDiagram {...AGENT_FLOW} vertical />
     </div>
   )
 }
@@ -72,7 +69,7 @@ export default function RunNarration({ exec, details, onInspect, children }) {
             <ol className="narr-steps" ref={listRef}>
               {story.map((item) => (
                 <li key={item.key} className={`${item.status}${item.retry ? ' retry' : ''}`}>
-                  <span className="narr-mark" style={{ '--node': COLOR[item.node] || '#a2a0ac' }} aria-label={STATUS_WORD[item.status]}>
+                  <span className="narr-mark" style={{ '--node': COLOR[item.node] || '#9c958a' }} aria-label={STATUS_WORD[item.status]}>
                     {MARK[item.status]}
                   </span>
                   <span className="narr-text">

@@ -1,19 +1,23 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import SuccessBars, { latestByConfig } from './SuccessBars.jsx'
 import SiteHeader from './SiteHeader.jsx'
 import SiteFooter from './SiteFooter.jsx'
 import { useLiveTotals } from '../hooks/useLiveTotals.js'
 import { DEMOS } from '../data/demos.js'
+import { formatMs } from './TraceView.jsx'
+import FlowDiagram from './FlowDiagram.jsx'
+import { AGENT_FLOW, DEMO_PATH } from '../data/flows.js'
 import '../styles/landing.css'
-
-const Hero3D = lazy(() => import('./Hero3D.jsx'))
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 const pad = (n) => String(n).padStart(2, '0')
 
 // Adds `.in` to every [data-reveal] element once it scrolls into view.
+// Sections are only hidden while `reveal-on` is set, so they stay visible
+// if this script never runs.
 function useReveal() {
   useEffect(() => {
+    const root = document.documentElement
     const els = document.querySelectorAll('[data-reveal]')
     const io = new IntersectionObserver(
       (entries) => {
@@ -24,10 +28,14 @@ function useReveal() {
           }
         }
       },
-      { threshold: 0.15 }
+      { threshold: 0, rootMargin: '0px 0px -8% 0px' }
     )
+    root.classList.add('reveal-on')
     els.forEach((el) => io.observe(el))
-    return () => io.disconnect()
+    return () => {
+      io.disconnect()
+      root.classList.remove('reveal-on')
+    }
   }, [])
 }
 
@@ -81,11 +89,40 @@ function useCycle(length, ms) {
   return [index, setIndex, setPaused]
 }
 
-const HERO_CARDS = [
-  ['Plan & search', 'Picks a tool and reads the web'],
-  ['Fact-check', 'Every claim against its sources'],
-  ['Retry', 'Goes back when a claim fails'],
+// The shape of a run with one retry, as the Observatory shows it. Illustrative,
+// so it is labelled "Example run"; every number on the page below it is live.
+const EXAMPLE_RUN = [
+  ['Plan', 'Pick a tool for: “Search the web for the latest AI news”', 'ok', 'OK'],
+  ['Memory lookup', 'Check what the agent already knows', 'ok', 'OK'],
+  ['Web search', 'Read the top results', 'ok', 'OK'],
+  ['Fact-check', 'Claim not supported by the source it cited', 'failed', 'FAILED'],
+  ['Retry plan', 'Search again with a narrower query', 'retry', 'RETRY'],
+  ['Web search', 'Read the new results', 'ok', 'OK'],
+  ['Fact-check', 'Every claim matches its source', 'passed', 'PASSED'],
+  ['Write answer', 'Final answer with citations', 'done', 'DONE'],
 ]
+
+function ExampleRun() {
+  const retries = EXAMPLE_RUN.filter(([, , kind]) => kind === 'retry').length
+  return (
+    <figure className="example-run" aria-label="Example run, step by step">
+      <figcaption>
+        <span>Example run</span>
+        <span>{EXAMPLE_RUN.length} steps · {retries} {retries === 1 ? 'retry' : 'retries'}</span>
+      </figcaption>
+      <ol>
+        {EXAMPLE_RUN.map(([name, text, kind, label], i) => (
+          <li key={i} className={kind} style={{ animationDelay: `${0.25 + i * 0.07}s` }}>
+            <span className="n">{pad(i + 1)}</span>
+            <b>{name}</b>
+            <span className="t">{text}</span>
+            <span className="s">{label}</span>
+          </li>
+        ))}
+      </ol>
+    </figure>
+  )
+}
 
 const STORY = [
   {
@@ -140,11 +177,10 @@ function Story() {
     setIndex((i) => (i + delta + STORY.length) % STORY.length)
   }
   return (
-    <section className="story frame" data-reveal>
-      <div className="story-texture" aria-hidden="true" />
-      <div className="frame-top">
-        <span className="chip">[ Inside the fact-checker ]</span>
-        <span className="chip light">“What is pgvector?”</span>
+    <section className="story block" data-reveal>
+      <div className="block-head">
+        <span className="label">Inside the fact-checker</span>
+        <span className="label quiet">“What is pgvector?”</span>
       </div>
       <h2 className="story-title">
         Every claim is checked against
@@ -186,67 +222,39 @@ function Story() {
 
 export default function LandingPage() {
   const { runs, totals } = useLiveNumbers()
-  const [show3D, setShow3D] = useState(false)
-  const [heroStep] = useCycle(HERO_CARDS.length, 2600)
   useReveal()
-  useEffect(() => setShow3D(true), [])
 
   const latest = runs ? latestByConfig(runs) : []
   const replan = latest.find((row) => row.item.id === 'replan')?.run
   const baseline = latest.find((row) => row.item.id === 'baseline')?.run
   const rate = (run) => (run && run.tasks ? Math.round((run.passed / run.tasks) * 100) : null)
+  const okRate = totals?.runs ? Math.round((totals.ok / totals.runs) * 100) : null
 
   return (
     <div className="landing">
       <SiteHeader current="/" />
-      <section className="hero frame" style={{ viewTransitionName: 'page-hero' }}>
-        <div className="hero-sky" aria-hidden="true" />
-        {show3D && (
-          <Suspense fallback={null}>
-            <Hero3D />
-          </Suspense>
-        )}
-
-
+      <section className="hero" style={{ viewTransitionName: 'page-hero' }}>
         <div className="hero-copy">
           <h1>
-            See why an AI agent
-            <br />
-            got it wrong, and
-            <br />
-            watch it fix itself
+            See why an AI agent got it wrong. <em>Then watch it fix itself.</em>
           </h1>
           <p>Planning, web search, fact-checking and retries, shown step by step on real recorded runs.</p>
           <div className="hero-ctas">
-            <a className="btn solid" href="/observatory?demo=hallucinated_claim">Watch it fix a mistake <span>→</span></a>
-            <a className="btn outline" href="/observatory">Ask your own question</a>
+            <a className="btn solid" href="/observatory?demo=hallucinated_claim">Watch it fix a mistake →</a>
+            <a className="text-link" href="/observatory">Ask your own question</a>
           </div>
         </div>
-
-        <div className="hero-cards">
-          {HERO_CARDS.map(([title, text], i) => (
-            <div key={title} className={`hero-card${i === heroStep ? ' on' : ''}`}>
-              <div>
-                <span className="idx">[ {pad(i + 1)} ]</span>
-                <b>{title}</b>
-                <small>{text}</small>
-              </div>
-              <span className={`orb o${i + 1}`} aria-hidden="true" />
-            </div>
-          ))}
-        </div>
-
-        <div className="frame-bar">
-          <span>WATCH AN AI AGENT PLAN, CHECK AND CORRECT ITSELF.</span>
-          <a href="/observatory">EXPLORE THE OBSERVATORY →</a>
-        </div>
+        <ExampleRun />
       </section>
 
-      <section className="metrics frame plain" data-reveal>
-        <div className="frame-top">
-          <span className="chip">[ Measured ]</span>
-          <span className="chip">{totals ? `${totals.runs.toLocaleString('en-US')} runs recorded` : 'Live data'}</span>
-        </div>
+      <section className="hero-stats" aria-label="Live numbers from stored runs">
+        <div><b><CountUp value={totals?.runs ?? null} /></b><span>stored runs</span></div>
+        <div><b><CountUp value={okRate} suffix="%" /></b><span>completed without error</span></div>
+        <div><b><CountUp value={totals?.replans ?? null} /></b><span>retries triggered</span></div>
+        <div><b>{totals?.p50_ms != null ? formatMs(totals.p50_ms) : '—'}</b><span>median run time</span></div>
+      </section>
+      <section className="metrics block" data-reveal>
+        <span className="label">Measured on the test suite</span>
         <h2>
           Numbers from real,
           <br />
@@ -256,7 +264,9 @@ export default function LandingPage() {
           <div className="metric">
             <b><CountUp value={rate(replan)} suffix="%" /></b>
             <p>
-              of test questions answered correctly with fact-checking and retry, up from {rate(baseline) ?? '—'}% without them.
+              {`of test questions answered correctly with fact-checking and retry${
+                rate(baseline) != null ? `, up from ${rate(baseline)}% without them` : ''
+              }.`}
             </p>
           </div>
           <div className="metric">
@@ -271,9 +281,9 @@ export default function LandingPage() {
             <p>individual claims checked against the pages the agent read.</p>
           </div>
         </div>
-        <div className="frame-bar">
-          <span>25 TEST QUESTIONS · 3 CONFIGURATIONS · GRADED ON FACTS, NOT STYLE.</span>
-          <a href="/evals">SEE EVERY RESULT →</a>
+        <div className="block-foot">
+          <span>25 test questions · 3 configurations · graded on facts, not style</span>
+          <a className="text-link" href="/evals">See every result →</a>
         </div>
       </section>
 
@@ -281,44 +291,32 @@ export default function LandingPage() {
 
       <section className="how" data-reveal>
         <div className="section-head">
-          <span className="chip">[ How it works ]</span>
-          <h2>Four steps, and one way back</h2>
+          <span className="label">How it works</span>
+          <h2>Six steps, and one way back</h2>
         </div>
-        <div className="how-grid">
-          {[
-            ['Plan', 'Reads your question and picks a tool: web search, calculator, customer database or text analysis.'],
-            ['Search', 'Runs the tool and pulls in related answers from earlier runs, its memory.'],
-            ['Fact-check', 'Writes an answer, then checks every claim against the pages it found.'],
-            ['Retry', 'If a claim can’t be backed up, or the search failed, it goes back and tries a better search.'],
-          ].map(([title, text], i) => (
-            <div key={title} className={`how-card${i === 3 ? ' back' : ''}`} style={{ transitionDelay: `${i * 0.08}s` }}>
-              <span className="idx">[ {pad(i + 1)} ]</span>
-              <span className={`orb o${i + 1}`} aria-hidden="true" />
-              <b>{title}</b>
-              <p>{text}</p>
-            </div>
-          ))}
-        </div>
+        <FlowDiagram {...AGENT_FLOW} />
       </section>
 
       <section className="break" data-reveal>
         <div className="section-head split">
           <div>
-            <span className="chip">[ Break it yourself ]</span>
+            <span className="label">Break it yourself</span>
             <h2>Plant a failure. See if it notices.</h2>
           </div>
-          <p>Each demo runs a real question with one thing broken on purpose. Sometimes it recovers, sometimes it doesn’t, and you see which.</p>
+          <p>One thing breaks on purpose. You see whether it recovers.</p>
         </div>
         <div className="break-grid">
           {DEMOS.map((demo, i) => (
             <a key={demo.id} className="break-card" href={`/observatory?demo=${demo.id}`}>
-              <div className="break-top">
-                <span className="idx">[ {pad(i + 1)} ]</span>
-                <span className={`orb small o${i + 1}`} aria-hidden="true" />
-              </div>
+              <span className="idx">{pad(i + 1)}</span>
               <b>{demo.title}</b>
+              <span className="break-path" aria-label={`Planted at the ${demo.stage} step`}>
+                {DEMO_PATH.map((stage) => (
+                  <i key={stage} className={stage === demo.stage ? 'hit' : undefined}>{stage}</i>
+                ))}
+              </span>
               <p>{demo.plant}</p>
-              <span className="break-go">RUN DEMO <i>→</i></span>
+              <span className="break-go">Run demo →</span>
             </a>
           ))}
         </div>
@@ -326,13 +324,10 @@ export default function LandingPage() {
 
       <section className="results" data-reveal>
         <div>
-          <span className="chip">[ Does it help? ]</span>
+          <span className="label">Does it help?</span>
           <h2>Same questions, three ways</h2>
-          <p>
-            A question counts as correct when the right tool was used and the answer has the expected facts and none of the
-            planted false ones.
-          </p>
-          <a className="btn dark" href="/evals">Open the evaluations <span>→</span></a>
+          <p>Correct means the right tool, the expected facts, and none of the planted ones.</p>
+          <a className="btn solid" href="/evals">Open the evaluations →</a>
         </div>
         <div className="results-card">
           {runs && runs.length > 0 ? <SuccessBars runs={runs} /> : <div className="muted">Loading live evaluation data…</div>}
@@ -340,14 +335,14 @@ export default function LandingPage() {
       </section>
 
       <section className="inspect" data-reveal>
-        <span className="chip">[ Look inside ]</span>
+        <span className="label">Look inside</span>
         {[
-          ['/observatory', 'Observatory', 'A 3D map of the agent. Each step lights up as it runs, and a red arrow appears only when a retry really happens.'],
-          ['/traces', 'Traces', 'Every step of your runs with its input, output, time taken and errors, in plain words and in full detail.'],
-          ['/evals', 'Evaluations', 'Test results with and without fact-checking, plus how fast memory search stays as data grows.'],
+          ['/observatory', 'Observatory', 'Watch each step light up live, in 3D.'],
+          ['/traces', 'Traces', 'Every step’s input, output and time.'],
+          ['/evals', 'Evaluations', 'Test scores with and without fact-checking.'],
         ].map(([href, title, text], i) => (
           <a key={href} href={href} className="inspect-row">
-            <span className="idx">[ {pad(i + 1)} ]</span>
+            <span className="idx">{pad(i + 1)}</span>
             <b>{title}</b>
             <p>{text}</p>
             <span className="go">→</span>
@@ -356,22 +351,22 @@ export default function LandingPage() {
       </section>
 
       <section className="honest" data-reveal>
-        <span className="chip">[ What the numbers mean ]</span>
-        <p>
-          The test set is small (25 questions written for this project) and is graded by checking for expected facts, not by
-          judging writing quality. AI answers and web results change, so results vary between runs. The fact-checker is itself
-          an AI and can be wrong; when it is unavailable, a simpler word-matching check is used and the trace says so.
-        </p>
+        <span className="label">What the numbers mean</span>
+        <ul className="honest-list">
+          <li><b>Small test set</b><span>25 questions written for this project.</span></li>
+          <li><b>Facts, not style</b><span>Graded on expected facts, not writing quality.</span></li>
+          <li><b>Results vary</b><span>AI answers and web pages change between runs.</span></li>
+          <li><b>The checker can be wrong</b><span>It is an AI too. The trace says when a simpler check ran.</span></li>
+        </ul>
       </section>
 
-      <section className="final frame" data-reveal>
-        <div className="hero-sky" aria-hidden="true" />
+      <section className="final" data-reveal>
         <h2>
           Go break an agent.
           <br />
           Then watch it recover.
         </h2>
-        <a className="btn solid" href="/observatory?demo">Start a demo <span>→</span></a>
+        <a className="btn solid" href="/observatory?demo">Start a demo →</a>
       </section>
 
       <SiteFooter />

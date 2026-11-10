@@ -4,7 +4,7 @@ import { buildArcCurve } from '../utils/curve.js'
 
 // A glowing sphere that travels along the same arc as a Connection tube,
 // representing a unit of information moving between pipeline components.
-export default function DataPacket({ from, to, duration, delay = 0, color = '#9fe8ff', onComplete }) {
+export default function DataPacket({ from, to, duration, delay = 0, color = '#f3efe7', onComplete }) {
   const mesh = useRef()
   const light = useRef()
   const curve = useMemo(() => buildArcCurve(from, to), [from, to])

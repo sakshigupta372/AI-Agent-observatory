@@ -8,7 +8,7 @@
   --ok-soft: #e3f4ec;
   --warn-soft: #fbf1d9;
   --bad-soft: #fbe6e9;
-  --surface: #ffffff;
+  --surface: var(--card);
   background: var(--panel);
   color: var(--ink);
   font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -95,7 +95,7 @@
   overflow: hidden;
   isolation: isolate;
   border-radius: 20px;
-  background: #05070d;
+  background: #12100d;
   box-shadow: 0 18px 40px -28px rgba(20, 24, 40, 0.6);
 }
 
@@ -318,11 +318,11 @@
 }
 
 .obs-legend li i.retry {
-  background: #ff7a8a;
+  background: var(--red);
 }
 
 .obs-legend li i.flow {
-  background: linear-gradient(90deg, rgba(159, 232, 255, 0.2), #9fe8ff);
+  background: linear-gradient(90deg, rgba(24, 21, 18, 0.15), var(--ink));
 }
 
 .obs-app .zone-badge {
@@ -414,21 +414,8 @@
 }
 
 .narr-intro p {
-  margin: 0 0 10px;
+  margin: 0 0 16px;
   color: var(--ink-soft);
-}
-
-.narr-intro ol {
-  margin: 0;
-  padding-left: 18px;
-  display: grid;
-  gap: 6px;
-  color: var(--ink-soft);
-}
-
-.narr-intro b {
-  color: var(--ink);
-  font-weight: 600;
 }
 
 .narr-query {
@@ -463,7 +450,7 @@
 }
 
 .narr-steps li.live {
-  background: #eef4fc;
+  background: var(--paper-deep);
   color: var(--ink);
 }
 
@@ -477,7 +464,7 @@
 }
 
 .narr-steps li.retry {
-  border-left: 3px solid #ff7a8a;
+  border-left: 3px solid var(--red);
 }
 
 .narr-mark {
@@ -668,7 +655,7 @@
 
 .obs-side .guided-picks button {
   border-color: var(--line);
-  background: #fff;
+  background: var(--card);
   color: var(--ink);
 }
 
@@ -680,7 +667,7 @@
 .obs-side .guided-steps li b { color: var(--ink); }
 .obs-side .guided-steps li span { color: var(--ink-soft); }
 .obs-side .guided-steps li.done::before { color: var(--ok); }
-.obs-side .guided-steps li.live { border-color: var(--blue); background: #eef4fc; }
+.obs-side .guided-steps li.live { border-color: var(--blue); background: var(--paper-deep); }
 .obs-side .guided-steps li.live::before { color: var(--blue); }
 .obs-side .guided-live { color: var(--blue-deep); }
 
@@ -692,7 +679,7 @@
 
 .obs-side .guided-actions button {
   border-color: var(--line);
-  background: #fff;
+  background: var(--card);
   color: var(--ink);
 }
 
@@ -724,7 +711,7 @@
 .obs-side .trace-header { color: var(--blue-deep); border-bottom-color: var(--line); }
 .obs-side .trace-live { color: var(--ok); }
 .obs-side .trace-entry { border-bottom-color: var(--line); }
-.obs-side .trace-row:hover { background: #eef4fc; }
+.obs-side .trace-row:hover { background: var(--paper-deep); }
 .obs-side .trace-time,
 .obs-side .trace-empty,
 .obs-side .trace-detail div span { color: var(--muted); }
@@ -767,7 +754,7 @@
 .obs-dock .status-line {
   align-self: flex-start;
   border: 0;
-  background: #eef4fc;
+  background: var(--paper-deep);
   color: var(--blue-deep);
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
@@ -790,7 +777,7 @@
   padding: 0 12px;
   border-radius: 8px;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--card);
   color: var(--ink);
   font: 500 12.5px Inter, sans-serif;
   cursor: pointer;
@@ -824,83 +811,200 @@
   color: #85828f;
 }
 
-.obs-dock .run-form button,
-.obs-dock .run-form button[type='button'],
-.obs-dock .inject-select {
-  height: 36px;
-  padding: 0 12px;
-  border-radius: 9px;
-  border: 1px solid var(--line);
-  background: #fff;
-  color: var(--ink);
-  font: 500 13px Inter, system-ui, sans-serif;
+.obs-dock .run-form {
+  gap: 6px;
 }
 
-.obs-dock .run-form button.on {
-  border-color: var(--blue);
-  color: var(--blue-deep);
+/* Scoped to the dock so the older .run-form button rules in global.css lose. */
+.obs-dock .run-form .btn-primary,
+.obs-dock .run-form .btn-ghost {
+  flex-shrink: 0;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 10px;
+  font: 600 13px/1 Inter, system-ui, sans-serif;
+  letter-spacing: 0;
 }
 
-.obs-dock .run-form button[type='submit'] {
-  border-color: var(--ink);
+.obs-dock .run-form .btn-primary {
+  border: 1px solid var(--ink);
   background: var(--ink);
   color: #fff;
 }
 
-.obs-dock .run-form button[type='submit']:hover:not(:disabled) {
+.obs-dock .run-form .btn-primary:hover:not(:disabled) {
+  border-color: var(--blue-deep);
   background: var(--blue-deep);
 }
 
-.obs-dock .run-form button:disabled {
-  opacity: 0.45;
+.obs-dock .run-form .btn-primary:disabled {
+  border-color: var(--rule);
+  background: var(--rule);
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+.obs-dock .run-form .break-btn {
+  border: 1px solid #f0c6cc;
+  background: var(--surface);
+  color: var(--bad);
+  font-weight: 500;
+}
+
+.obs-dock .run-form .break-btn:hover {
+  border-color: var(--bad);
+  background: var(--bad-soft);
+}
+
+/* "Inject a failure": a labelled select, not a bare dropdown */
+.inject-field {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex-shrink: 0;
+  height: 38px;
+  padding: 0 4px 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.inject-field > span {
+  color: var(--ink-soft);
+  font: 600 10px/1.2 Inter, system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.inject-field.armed {
+  border-color: var(--bad);
+  background: var(--bad-soft);
+}
+
+.inject-field.armed > span {
+  color: var(--bad);
+}
+
+.obs-dock .inject-select {
+  height: auto;
+  padding: 0 18px 0 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 500 13px/1.3 Inter, system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.obs-dock .inject-select:disabled {
+  opacity: 0.5;
 }
 
 .obs-dock .inject-select option {
-  background: #fff;
+  background: var(--card);
   color: var(--ink);
+}
+
+.console-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 
 .obs-dock .example-chips {
+  display: flex;
+  flex: 1;
+  flex-wrap: nowrap;
   justify-content: flex-start;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.obs-dock .example-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chips-label {
+  flex-shrink: 0;
+  color: var(--muted);
+  font: 600 11px Inter, system-ui, sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .obs-dock .example-chips button {
+  flex-shrink: 0;
   padding: 5px 11px;
   border-radius: 999px;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--card);
   color: var(--ink-soft);
   font: 12.5px Inter, system-ui, sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
 }
 
 .obs-dock .example-chips button:hover:not(:disabled) {
-  border-color: var(--blue);
-  background: #fff;
-  color: var(--blue-deep);
+  border-color: var(--ink);
+  color: var(--red);
 }
 
-.obs-app .view-toggle {
-  position: static;
+.obs-dock .example-chips button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.console-actions {
+  display: flex;
   flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
 }
 
-.obs-app .view-toggle button {
-  height: 32px;
-  padding: 0 12px;
-  border-radius: 9px;
-  border: 1px solid var(--line);
-  background: #fff;
-  color: var(--ink);
-  font: 500 12.5px Inter, system-ui, sans-serif;
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
+.console-actions .btn-ghost {
+  height: 30px;
+  padding: 0 10px;
+  font-size: 12.5px;
 }
 
-.obs-app .view-toggle button:hover {
+.console-actions .btn-ghost:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.console-actions .btn-ghost.on {
   border-color: var(--blue);
   color: var(--blue-deep);
 }
 
+.mode-toggle {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel);
+}
+
+.mode-toggle button {
+  height: 24px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink-soft);
+  font: 500 12px Inter, system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.mode-toggle button[aria-pressed='true'] {
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(42, 38, 36, 0.12);
+}
 /* ---------- overlays above the layout ---------- */
 .obs-app .inspector {
   position: fixed;
@@ -934,7 +1038,7 @@
 .tour-spot {
   position: fixed;
   border-radius: 16px;
-  box-shadow: 0 0 0 2px #fff, 0 0 0 5px var(--blue), 0 0 0 9999px rgba(20, 18, 30, 0.55);
+  box-shadow: 0 0 0 2px #fff, 0 0 0 5px var(--red), 0 0 0 9999px rgba(20, 18, 30, 0.55);
   pointer-events: none;
   transition: top 0.35s var(--ease), left 0.35s var(--ease), width 0.35s var(--ease), height 0.35s var(--ease);
 }
@@ -943,7 +1047,7 @@
   position: fixed;
   padding: 18px;
   border-radius: 16px;
-  background: #fff;
+  background: var(--card);
   color: var(--ink);
   box-shadow: 0 24px 60px -20px rgba(20, 18, 30, 0.5);
   animation: obs-rise 0.3s var(--ease) both;
@@ -1087,22 +1191,22 @@
     height: 40px;
   }
 
-  .obs-dock .run-form button[type='submit'] {
-    margin-left: auto;
+  .inject-field {
+    flex: 1;
+  }
+
+  .console-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
   }
 
   .obs-dock .example-chips {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
+    flex-wrap: wrap;
+    overflow: visible;
   }
 
-  .obs-dock .example-chips button {
-    flex-shrink: 0;
-  }
-
-  .obs-app .view-toggle {
-    flex-direction: row;
+  .console-actions {
     flex-wrap: wrap;
   }
 
