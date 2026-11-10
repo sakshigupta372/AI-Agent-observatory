@@ -117,9 +117,75 @@ body {
 
 .sh-logo {
   justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
   font-size: 15px;
-  font-weight: 700;
   letter-spacing: -0.01em;
+}
+
+.sh-logo b {
+  font-weight: 700;
+}
+
+.sh-mark {
+  display: grid;
+  grid-template-columns: 7px 7px;
+  gap: 2.5px;
+}
+
+.sh-mark i {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--ink);
+}
+
+.sh-mark i:nth-child(2) {
+  background: var(--red);
+}
+
+.sh-tag {
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.sh-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--ink-soft);
+  font: 500 11.5px var(--mono);
+  white-space: nowrap;
+}
+
+.site-header .sh-live {
+  color: var(--ink-soft);
+}
+
+.sh-live i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 3px var(--green-soft);
+}
+
+.sh-gh {
+  padding: 0 6px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.site-header .sh-gh:hover {
+  color: var(--red);
 }
 
 .sh-nav {
@@ -233,85 +299,120 @@ body {
 }
 
 /* ---------- footer ---------- */
+/* Full-width dark band; the content inside keeps the page width. */
 .site-footer {
-  width: var(--page);
-  margin: 40px auto 0;
-  padding: 44px 0 22px;
-  border-top: 2px solid var(--rule);
-  color: var(--ink);
+  --salmon: #ff8a73;
+  margin-top: 64px;
+  padding: 72px 0 24px;
+  background: var(--ink);
+  color: var(--paper);
   font-family: var(--sans);
 }
 
+.sf-inner {
+  width: var(--page);
+  margin: 0 auto;
+}
+
 .site-footer a {
-  color: var(--ink);
+  color: var(--paper);
   text-decoration: none;
 }
 
-.sf-top {
-  display: grid;
-  grid-template-columns: 1.2fr 2fr;
-  gap: 60px;
+.site-footer :focus-visible {
+  outline: 2px solid var(--salmon);
+  outline-offset: 3px;
 }
 
-.sf-intro p {
-  margin: 0 0 22px;
-  max-width: 380px;
-  font-size: clamp(24px, 2.4vw, 32px);
-  font-weight: 700;
-  line-height: 1.08;
-  letter-spacing: -0.03em;
+.sf-cta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 28px;
+  padding-bottom: 48px;
+  border-bottom: 1px solid #3a342e;
+}
+
+.sf-cta h2 {
+  max-width: 640px;
+  margin: 0;
+  font-size: clamp(36px, 4.6vw, 60px);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.045em;
+}
+
+.sf-cta em {
+  color: var(--salmon);
+  font-style: normal;
 }
 
 .site-footer .sf-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  height: 38px;
-  padding: 0 16px;
+  height: 42px;
+  padding: 0 20px;
   border-radius: 6px;
-  background: var(--ink);
-  color: var(--paper);
-  font-size: 13px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 13.5px;
   font-weight: 600;
-  transition: background 0.2s;
+  white-space: nowrap;
+  transition: background 0.2s, color 0.2s;
 }
 
 .site-footer .sf-btn:hover {
-  background: var(--red);
+  background: var(--salmon);
+  color: var(--ink);
 }
 
 .sf-cols {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
+  grid-template-columns: 1.4fr 1fr 1fr 1fr;
+  gap: 28px;
+  padding: 36px 0 52px;
+}
+
+.sf-brand b {
+  display: block;
+  margin-bottom: 10px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.sf-brand p {
+  max-width: 260px;
+  margin: 0;
+  color: #b8afa3;
+  font-size: 13.5px;
+  line-height: 1.5;
 }
 
 .sf-cols h4 {
   margin: 0 0 14px;
-  color: var(--muted);
-  font-family: var(--mono);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
+  color: var(--salmon);
+  font: 500 11px var(--mono);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .sf-cols ul {
-  list-style: none;
+  display: grid;
+  gap: 10px;
   margin: 0;
   padding: 0;
-  display: grid;
-  gap: 9px;
+  list-style: none;
+  font-size: 14px;
 }
 
 .sf-cols a {
-  font-size: 14px;
   border-bottom: 1px solid transparent;
   transition: border-color 0.2s, color 0.2s;
 }
 
 .sf-cols a:hover {
-  color: var(--red);
+  color: var(--salmon);
   border-bottom-color: currentColor;
 }
 
@@ -320,12 +421,10 @@ body {
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  margin-top: 56px;
-  padding-top: 14px;
-  border-top: 1px solid var(--line);
-  color: var(--ink-soft);
-  font-family: var(--mono);
-  font-size: 11.5px;
+  padding-top: 16px;
+  border-top: 1px solid #3a342e;
+  color: #b8afa3;
+  font: 11.5px var(--mono);
 }
 
 .sf-live {
@@ -338,23 +437,23 @@ body {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--green);
+  background: #6fcf97;
 }
 
 .sf-live.down i {
-  background: var(--muted);
+  background: #847c72;
 }
 
 .sf-top-btn {
   border: none;
   background: none;
-  color: var(--ink);
+  color: var(--paper);
   font: inherit;
   cursor: pointer;
 }
 
 .sf-top-btn:hover {
-  color: var(--red);
+  color: var(--salmon);
 }
 
 /* ---------- responsive ---------- */
@@ -400,9 +499,13 @@ body {
     background: var(--card);
   }
 
-  .sf-top {
-    grid-template-columns: 1fr;
-    gap: 40px;
+  .sh-tag,
+  .sh-gh {
+    display: none;
+  }
+
+  .sf-cols {
+    grid-template-columns: 1fr 1fr;
   }
 
   .page-hero {
@@ -411,8 +514,12 @@ body {
 }
 
 @media (max-width: 560px) {
-  .sf-cols {
-    grid-template-columns: 1fr 1fr;
+  .sh-live {
+    display: none;
+  }
+
+  .sf-cols .sf-brand {
+    grid-column: 1 / -1;
   }
 
   .sf-bar {
