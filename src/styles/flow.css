@@ -1,0 +1,260 @@
+.flow {
+  display: grid;
+  grid-template-columns: repeat(var(--count), minmax(0, 1fr));
+  margin: 0;
+}
+
+.flow-steps {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(var(--count), minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.flow-steps li {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px;
+  text-align: center;
+  animation: flow-in 0.5s var(--ease) both;
+  animation-delay: calc(var(--i) * 90ms + 0.15s);
+}
+
+/* Connector to the next step. */
+.flow-steps li:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 22px;
+  left: calc(50% + 30px);
+  width: calc(100% - 60px);
+  height: 1.5px;
+  background: linear-gradient(90deg, var(--rule) calc(100% - 7px), transparent 0);
+}
+
+.flow-steps li:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  top: 18.5px;
+  right: calc(-50% + 30px);
+  border: 4px solid transparent;
+  border-left: 7px solid var(--rule);
+  border-right: none;
+}
+
+.flow-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1.5px solid var(--ink);
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--ink);
+  font: 600 13px var(--mono);
+}
+
+.flow-steps b {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.flow-note {
+  max-width: 16ch;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.flow-steps li.broken .flow-icon {
+  border-color: var(--red);
+  background: var(--red);
+  color: #fff;
+}
+
+.flow-steps li.broken b {
+  color: var(--red);
+}
+
+.flow-steps li.loop-from .flow-icon,
+.flow-steps li.loop-to .flow-icon {
+  border-color: var(--red);
+}
+
+/* The retry loop: a dashed U under the steps it connects, arrow up into the target. */
+.flow-loop {
+  position: relative;
+  grid-row: 2;
+  height: 30px;
+  margin: 10px calc(100% / var(--span) / 2) 0;
+  border: 1.5px dashed var(--red);
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  animation: flow-in 0.5s var(--ease) both;
+  animation-delay: calc(var(--count) * 90ms + 0.3s);
+}
+
+.flow-loop::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: -5.5px;
+  border: 4.5px solid transparent;
+  border-bottom: 8px solid var(--red);
+  border-top: none;
+}
+
+.flow-loop span {
+  position: absolute;
+  bottom: -9px;
+  left: 50%;
+  padding: 0 10px;
+  background: var(--paper);
+  color: var(--red);
+  font: 600 11.5px var(--mono);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.flow-loop-tag {
+  display: none;
+}
+
+/* Vertical layout: a list with a line down the left. */
+.flow.vertical,
+.flow.vertical .flow-steps {
+  grid-template-columns: 1fr;
+}
+
+.flow.vertical .flow-steps li {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  column-gap: 12px;
+  row-gap: 1px;
+  align-items: center;
+  padding: 0 0 14px;
+  text-align: left;
+}
+
+.flow.vertical .flow-icon {
+  grid-row: 1 / span 2;
+  align-self: start;
+  width: 34px;
+  height: 34px;
+}
+
+.flow.vertical .flow-steps b {
+  font-size: 14px;
+}
+
+.flow.vertical .flow-note {
+  max-width: none;
+  font-size: 12.5px;
+}
+
+.flow.vertical .flow-steps li:not(:last-child)::after {
+  top: 36px;
+  left: 16.5px;
+  width: 1.5px;
+  height: calc(100% - 38px);
+  background: var(--rule);
+}
+
+.flow.vertical .flow-steps li::before {
+  display: none;
+}
+
+.flow.vertical .flow-loop {
+  display: none;
+}
+
+.flow.vertical .flow-loop-tag {
+  display: inline-block;
+  grid-column: 2;
+  justify-self: start;
+  margin-top: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--red-soft);
+  color: var(--red);
+  font: 600 11px var(--mono);
+}
+
+@media (max-width: 640px) {
+  .flow,
+  .flow .flow-steps {
+    grid-template-columns: 1fr;
+  }
+
+  .flow .flow-steps li {
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    column-gap: 12px;
+    row-gap: 1px;
+    align-items: center;
+    padding: 0 0 14px;
+    text-align: left;
+  }
+
+  .flow .flow-icon {
+    grid-row: 1 / span 2;
+    align-self: start;
+    width: 34px;
+    height: 34px;
+  }
+
+  .flow .flow-note {
+    max-width: none;
+  }
+
+  .flow .flow-steps li:not(:last-child)::after {
+    top: 36px;
+    left: 16.5px;
+    width: 1.5px;
+    height: calc(100% - 38px);
+    background: var(--rule);
+  }
+
+  .flow .flow-steps li::before,
+  .flow .flow-loop {
+    display: none;
+  }
+
+  .flow .flow-loop-tag {
+    display: inline-block;
+    grid-column: 2;
+    justify-self: start;
+    margin-top: 5px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--red-soft);
+    color: var(--red);
+    font: 600 11px var(--mono);
+  }
+}
+
+@keyframes flow-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.reveal-on [data-reveal]:not(.in) .flow-steps li,
+.reveal-on [data-reveal]:not(.in) .flow-loop {
+  animation: none;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-steps li,
+  .flow-loop {
+    animation: none;
+  }
+}

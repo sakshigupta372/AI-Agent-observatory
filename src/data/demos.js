@@ -1,10 +1,11 @@
 // Guided "break it yourself" demos. Each one runs a normal question with one
 // failure planted on purpose, using the agent's existing failure injection.
-// `fixed` decides the honest outcome shown at the end of the demo.
+// `stage` is where the failure is planted. `fixed` decides the honest outcome shown at the end of the demo.
 export const DEMOS = [
   {
     id: 'hallucinated_claim',
     title: 'Fake fact',
+    stage: 'Write',
     icon: '🎭',
     query: 'What is pgvector?',
     plant: 'A made-up sentence about "Atlantis Holdings" and Napoleon is slipped into the first answer.',
@@ -15,6 +16,7 @@ export const DEMOS = [
   {
     id: 'empty_retrieval',
     title: 'Search finds nothing',
+    stage: 'Search',
     icon: '🕳️',
     query: 'What is the capital of Australia?',
     plant: 'The first web search is forced to come back empty.',
@@ -25,6 +27,7 @@ export const DEMOS = [
   {
     id: 'irrelevant_retrieval',
     title: 'Wrong web pages',
+    stage: 'Search',
     icon: '🧭',
     query: 'Who created the Python programming language?',
     plant: 'The search results are swapped for pages about medieval pottery.',
@@ -35,6 +38,7 @@ export const DEMOS = [
   {
     id: 'tool_timeout',
     title: 'Tool crashes',
+    stage: 'Search',
     icon: '⏱️',
     query: 'What is pgvector?',
     plant: 'The search tool is made to time out on the first try.',

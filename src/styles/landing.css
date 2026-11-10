@@ -473,46 +473,9 @@
 }
 
 /* ---------- how it works ---------- */
-.how-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+.how .flow {
+  padding: 34px 0 18px;
   border-top: 1px solid var(--line);
-}
-
-.how-card {
-  padding: 22px 22px 6px 0;
-  opacity: 0;
-  transform: translateY(16px);
-  transition: opacity 0.7s var(--ease), transform 0.7s var(--ease);
-}
-
-.how-card + .how-card {
-  padding-left: 22px;
-  border-left: 1px solid var(--line);
-}
-
-.how.in .how-card {
-  opacity: 1;
-  transform: none;
-}
-
-.how-card b {
-  display: block;
-  margin: 14px 0 8px;
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-}
-
-.how-card.back b {
-  color: var(--red);
-}
-
-.how-card p {
-  margin: 0;
-  color: var(--ink-soft);
-  font-size: 14px;
-  line-height: 1.55;
 }
 
 /* ---------- break it yourself ---------- */
@@ -548,6 +511,38 @@
   color: var(--ink-soft);
   font-size: 13.5px;
   line-height: 1.5;
+}
+
+.break-path {
+  display: flex;
+  gap: 3px;
+}
+
+.break-path i {
+  flex: 1;
+  padding: 4px 0 0;
+  border-top: 3px solid var(--line);
+  color: var(--muted);
+  font: 500 10.5px var(--mono);
+  font-style: normal;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.break-path i.hit {
+  border-top-color: var(--red);
+  color: var(--red);
+  font-weight: 700;
+}
+
+.break-card:hover .break-path i {
+  border-top-color: #4d463f;
+  color: #c9c1b5;
+}
+
+.break-card:hover .break-path i.hit {
+  border-top-color: #ff8a73;
+  color: #ff8a73;
 }
 
 .break-go {
@@ -681,12 +676,32 @@
 }
 
 /* ---------- honest + final ---------- */
-.honest p {
-  max-width: 820px;
+.honest-list {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0 24px;
   margin: 0;
-  font-size: clamp(18px, 1.8vw, 23px);
+  padding: 0;
+  list-style: none;
+}
+
+.honest-list li {
+  display: grid;
+  gap: 6px;
+  padding-top: 14px;
+  border-top: 1.5px solid var(--ink);
+}
+
+.honest-list b {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.honest-list span {
+  color: var(--ink-soft);
+  font-size: 14px;
   line-height: 1.45;
-  letter-spacing: -0.01em;
 }
 
 .final {
@@ -729,14 +744,10 @@
     gap: 36px;
   }
 
-  .how-grid,
-  .break-grid {
+  .break-grid,
+  .honest-list {
     grid-template-columns: 1fr 1fr;
-  }
-
-  .how-card:nth-child(3) {
-    padding-left: 0;
-    border-left: 0;
+    gap: 24px;
   }
 
   .inspect-row {
@@ -778,16 +789,9 @@
     grid-row: 2;
   }
 
-  .how-grid,
-  .break-grid {
+  .break-grid,
+  .honest-list {
     grid-template-columns: 1fr;
-  }
-
-  .how-card,
-  .how-card + .how-card {
-    padding: 20px 0 12px;
-    border-left: 0;
-    border-bottom: 1px solid var(--line);
   }
 
   .story-card {

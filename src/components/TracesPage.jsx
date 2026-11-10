@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import DashNav from './DashNav.jsx'
 import SiteFooter from './SiteFooter.jsx'
 import TraceView, { STATUS_PLAIN, formatCost, formatMs, stepName, toolName } from './TraceView.jsx'
+import FlowDiagram from './FlowDiagram.jsx'
+import { TRACE_FLOW } from '../data/flows.js'
 import '../styles/dashboard.css'
 
 function Analytics({ data }) {
@@ -23,7 +25,7 @@ function Analytics({ data }) {
       <div className="grid-2">
         <div className="card">
           <h2>Where the time goes</h2>
-          <p className="hint">Average and p95 duration per step, across every stored run. Retried steps are counted separately.</p>
+          <p className="hint">Average and p95 time per step. Retries count separately.</p>
           <div className="table-wrap">
           <table className="table">
             <thead>
@@ -107,16 +109,20 @@ export default function TracesPage() {
       <DashNav
         current="/traces"
         title={<>Every run,<br />step by step</>}
-        subtitle="What the agent planned, searched, wrote and checked, with real inputs, outputs and timings for each step."
+        subtitle="What the agent planned, searched, wrote and checked, with real timings."
       />
     <div className="dash">
 
       {error && <div className="card bad">Could not load traces: {error}</div>}
       <Analytics data={analytics} />
 
-      <p className="hint" style={{ margin: '0 0 12px' }}>
-        You see the runs made from this browser plus the evaluation suite's runs. Other visitors' questions are never listed.
-      </p>
+      <div className="card trace-guide">
+        <h2>Your runs</h2>
+        <FlowDiagram {...TRACE_FLOW} />
+        <p className="hint" style={{ margin: '18px 0 0' }}>
+          Runs from this browser plus the test suite’s. Other visitors’ questions are never listed.
+        </p>
+      </div>
 
       {traces && traces.length === 0 && (
         <div className="card empty">No traces stored yet. Run a query on the Observatory page and it will appear here.</div>

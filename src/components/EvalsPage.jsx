@@ -4,6 +4,8 @@ import SiteFooter from './SiteFooter.jsx'
 import { formatCost, formatMs } from './TraceView.jsx'
 import { EVAL_CONFIGS, EVAL_QUESTIONS, EVAL_TASKS } from '../data/evalSuite.js'
 import SuccessBars, { latestByConfig } from './SuccessBars.jsx'
+import FlowDiagram from './FlowDiagram.jsx'
+import { EVAL_FLOW } from '../data/flows.js'
 import '../styles/dashboard.css'
 
 const pct = (n, d) => (d ? `${Math.round((n / d) * 100)}%` : '–')
@@ -14,20 +16,25 @@ function tone(n, d) {
   return rate >= 0.85 ? 'good' : rate >= 0.6 ? 'warn' : 'bad'
 }
 
-function Questions() {
+function HowTested() {
   return (
     <div className="card" style={{ marginBottom: 18 }}>
-      <h2>Questions this project is built to answer</h2>
-      <p className="hint">Each question raised about the agent maps to something you can run or measure here.</p>
-      <div className="q-grid">
-        {EVAL_QUESTIONS.map((item) => (
-          <div key={item.id} className="q-item">
-            <div className="q-ask">{item.ask}</div>
-            <div className="q-answer">{item.answer}</div>
-            <div className="q-where">{item.where}</div>
-          </div>
-        ))}
+      <h2>How the test works</h2>
+      <div className="flow-wrap">
+        <FlowDiagram {...EVAL_FLOW} />
       </div>
+      <details className="more">
+        <summary>Questions this project answers ({EVAL_QUESTIONS.length})</summary>
+        <div className="q-grid">
+          {EVAL_QUESTIONS.map((item) => (
+            <div key={item.id} className="q-item">
+              <div className="q-ask">{item.ask}</div>
+              <div className="q-answer">{item.answer}</div>
+              <div className="q-where">{item.where}</div>
+            </div>
+          ))}
+        </div>
+      </details>
     </div>
   )
 }
@@ -53,9 +60,8 @@ function Comparison({ runs }) {
     <div className="card" style={{ marginBottom: 18 }}>
       <h2>Does verification and replanning help?</h2>
       <p className="hint">
-        The same {EVAL_TASKS.length} tasks under three configurations. Success means the right tool was chosen, the answer contains the
-        reference facts and none of the forbidden ones. "Injected" rows only count the {EVAL_TASKS.filter((t) => t.inject).length} tasks
-        where a failure was planted on purpose.
+        Pass = right tool, expected facts, no planted ones. "Injected" rows count only the {EVAL_TASKS.filter((t) => t.inject).length} tasks
+        with a planted failure.
       </p>
       <div style={{ maxWidth: 560, margin: '16px 0 22px' }}>
         <SuccessBars runs={runs} />
@@ -166,11 +172,16 @@ function Benchmarks({ rows }) {
   return (
     <div className="card" style={{ marginBottom: 18 }}>
       <h2>Memory retrieval latency as the table grows</h2>
-      <p className="hint">
-        Synthetic random 384-dimension vectors in a scratch table, top-5 cosine search. "Client" includes the network hop to the hosted
-        database; "server" is the database's own execution time. Random vectors have no cluster structure, so recall here is a stress
-        test and not a prediction for real text. The app's real memory table holds at most 80 rows.
-      </p>
+      <p className="hint">Top-5 search time on random test vectors. Lower is better.</p>
+      <details className="more">
+        <summary>About this benchmark</summary>
+        <ul className="fine-print">
+          <li>Synthetic random 384-dimension vectors in a scratch table, top-5 cosine search.</li>
+          <li>"Client" includes the network hop to the hosted database; "server" is the database's own execution time.</li>
+          <li>Random vectors have no cluster structure, so recall here is a stress test, not a prediction for real text.</li>
+          <li>The app's real memory table holds at most 80 rows.</li>
+        </ul>
+      </details>
       {rows.length === 0 ? (
         <div className="empty">No benchmark stored yet. Run: <code>node --env-file=.env scripts/benchmarkRetrieval.js</code></div>
       ) : (
@@ -233,10 +244,10 @@ export default function EvalsPage() {
       <DashNav
         current="/evals"
         title={<>Measured,<br />not claimed</>}
-        subtitle="The same test questions run with and without fact-checking and retries, plus how fast memory search stays as data grows."
+        subtitle="The same questions with and without fact-checking, plus memory search speed."
       />
     <div className="dash">
-      <Questions />
+      <HowTested />
       {error && <div className="card bad" style={{ marginBottom: 18 }}>Could not load results: {error}</div>}
       {runs && runs.length === 0 && (
         <div className="card empty" style={{ marginBottom: 18 }}>
@@ -252,14 +263,13 @@ export default function EvalsPage() {
       <Benchmarks rows={benchmarks} />
       <div className="card">
         <h2>How to read these numbers</h2>
-        <p className="hint" style={{ marginBottom: 0 }}>
-          The suite is small ({EVAL_TASKS.length} tasks) and graded by reference patterns, so a pass means the expected facts appeared and
-          forbidden ones did not, not that the prose is good. Model output varies between runs and web results change, so a single pass is a
-          snapshot; repeat runs with <code>--repeat</code> to see the spread. Cost uses list prices for the model's tokens and excludes
-          search and hosting. The verifier is an LLM check, not ground truth, and falls back to a word-overlap check when the model is
-          unavailable; the trace marks which one ran. Stage localization is a rule-based diagnosis read from the trace and is scored
-          against the stage where each failure was planted.
-        </p>
+        <ul className="caveats">
+          <li><b>Small suite</b><span>{EVAL_TASKS.length} tasks. A pass means the expected facts appeared, not that the writing is good.</span></li>
+          <li><b>One run is a snapshot</b><span>Model output and web results change. Use <code>--repeat</code> to see the spread.</span></li>
+          <li><b>Cost is model tokens only</b><span>List prices; search and hosting are not included.</span></li>
+          <li><b>The verifier can be wrong</b><span>It is an AI check, with a word-overlap fallback. The trace says which ran.</span></li>
+          <li><b>Stage diagnosis is rule-based</b><span>Read from the trace, scored against where the failure was planted.</span></li>
+        </ul>
       </div>
     </div>
       <SiteFooter />

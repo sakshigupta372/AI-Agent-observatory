@@ -414,21 +414,8 @@
 }
 
 .narr-intro p {
-  margin: 0 0 10px;
+  margin: 0 0 16px;
   color: var(--ink-soft);
-}
-
-.narr-intro ol {
-  margin: 0;
-  padding-left: 18px;
-  display: grid;
-  gap: 6px;
-  color: var(--ink-soft);
-}
-
-.narr-intro b {
-  color: var(--ink);
-  font-weight: 600;
 }
 
 .narr-query {

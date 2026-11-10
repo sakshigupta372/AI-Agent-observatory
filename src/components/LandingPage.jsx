@@ -5,6 +5,8 @@ import SiteFooter from './SiteFooter.jsx'
 import { useLiveTotals } from '../hooks/useLiveTotals.js'
 import { DEMOS } from '../data/demos.js'
 import { formatMs } from './TraceView.jsx'
+import FlowDiagram from './FlowDiagram.jsx'
+import { AGENT_FLOW, DEMO_PATH } from '../data/flows.js'
 import '../styles/landing.css'
 
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -290,22 +292,9 @@ export default function LandingPage() {
       <section className="how" data-reveal>
         <div className="section-head">
           <span className="label">How it works</span>
-          <h2>Four steps, and one way back</h2>
+          <h2>Six steps, and one way back</h2>
         </div>
-        <div className="how-grid">
-          {[
-            ['Plan', 'Reads your question and picks a tool: web search, calculator, customer database or text analysis.'],
-            ['Search', 'Runs the tool and pulls in related answers from earlier runs, its memory.'],
-            ['Fact-check', 'Writes an answer, then checks every claim against the pages it found.'],
-            ['Retry', 'If a claim can’t be backed up, or the search failed, it goes back and tries a better search.'],
-          ].map(([title, text], i) => (
-            <div key={title} className={`how-card${i === 3 ? ' back' : ''}`} style={{ transitionDelay: `${i * 0.08}s` }}>
-              <span className="idx">{pad(i + 1)}</span>
-              <b>{title}</b>
-              <p>{text}</p>
-            </div>
-          ))}
-        </div>
+        <FlowDiagram {...AGENT_FLOW} />
       </section>
 
       <section className="break" data-reveal>
@@ -314,13 +303,18 @@ export default function LandingPage() {
             <span className="label">Break it yourself</span>
             <h2>Plant a failure. See if it notices.</h2>
           </div>
-          <p>Each demo runs a real question with one thing broken on purpose. Sometimes it recovers, sometimes it doesn’t, and you see which.</p>
+          <p>One thing breaks on purpose. You see whether it recovers.</p>
         </div>
         <div className="break-grid">
           {DEMOS.map((demo, i) => (
             <a key={demo.id} className="break-card" href={`/observatory?demo=${demo.id}`}>
               <span className="idx">{pad(i + 1)}</span>
               <b>{demo.title}</b>
+              <span className="break-path" aria-label={`Planted at the ${demo.stage} step`}>
+                {DEMO_PATH.map((stage) => (
+                  <i key={stage} className={stage === demo.stage ? 'hit' : undefined}>{stage}</i>
+                ))}
+              </span>
               <p>{demo.plant}</p>
               <span className="break-go">Run demo →</span>
             </a>
@@ -332,10 +326,7 @@ export default function LandingPage() {
         <div>
           <span className="label">Does it help?</span>
           <h2>Same questions, three ways</h2>
-          <p>
-            A question counts as correct when the right tool was used and the answer has the expected facts and none of the
-            planted false ones.
-          </p>
+          <p>Correct means the right tool, the expected facts, and none of the planted ones.</p>
           <a className="btn solid" href="/evals">Open the evaluations →</a>
         </div>
         <div className="results-card">
@@ -346,9 +337,9 @@ export default function LandingPage() {
       <section className="inspect" data-reveal>
         <span className="label">Look inside</span>
         {[
-          ['/observatory', 'Observatory', 'A 3D map of the agent. Each step lights up as it runs, and a red arrow appears only when a retry really happens.'],
-          ['/traces', 'Traces', 'Every step of your runs with its input, output, time taken and errors, in plain words and in full detail.'],
-          ['/evals', 'Evaluations', 'Test results with and without fact-checking, plus how fast memory search stays as data grows.'],
+          ['/observatory', 'Observatory', 'Watch each step light up live, in 3D.'],
+          ['/traces', 'Traces', 'Every step’s input, output and time.'],
+          ['/evals', 'Evaluations', 'Test scores with and without fact-checking.'],
         ].map(([href, title, text], i) => (
           <a key={href} href={href} className="inspect-row">
             <span className="idx">{pad(i + 1)}</span>
@@ -361,11 +352,12 @@ export default function LandingPage() {
 
       <section className="honest" data-reveal>
         <span className="label">What the numbers mean</span>
-        <p>
-          The test set is small (25 questions written for this project) and is graded by checking for expected facts, not by
-          judging writing quality. AI answers and web results change, so results vary between runs. The fact-checker is itself
-          an AI and can be wrong; when it is unavailable, a simpler word-matching check is used and the trace says so.
-        </p>
+        <ul className="honest-list">
+          <li><b>Small test set</b><span>25 questions written for this project.</span></li>
+          <li><b>Facts, not style</b><span>Graded on expected facts, not writing quality.</span></li>
+          <li><b>Results vary</b><span>AI answers and web pages change between runs.</span></li>
+          <li><b>The checker can be wrong</b><span>It is an AI too. The trace says when a simpler check ran.</span></li>
+        </ul>
       </section>
 
       <section className="final" data-reveal>
