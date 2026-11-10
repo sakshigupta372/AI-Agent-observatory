@@ -239,6 +239,37 @@
   }
 }
 
+/* Connectors draw themselves after the step they leave appears. */
+.flow-steps li:not(:last-child)::after {
+  transform-origin: left center;
+  animation: flow-line-x 0.45s var(--ease) both;
+  animation-delay: calc(var(--i) * 90ms + 0.35s);
+}
+
+.flow.vertical .flow-steps li:not(:last-child)::after {
+  transform-origin: center top;
+  animation-name: flow-line-y;
+}
+
+@media (max-width: 640px) {
+  .flow .flow-steps li:not(:last-child)::after {
+    transform-origin: center top;
+    animation-name: flow-line-y;
+  }
+}
+
+@keyframes flow-line-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes flow-line-y {
+  from {
+    transform: scaleY(0);
+  }
+}
+
 @keyframes flow-in {
   from {
     opacity: 0;
@@ -247,6 +278,7 @@
 }
 
 .reveal-on [data-reveal]:not(.in) .flow-steps li,
+.reveal-on [data-reveal]:not(.in) .flow-steps li::after,
 .reveal-on [data-reveal]:not(.in) .flow-loop {
   animation: none;
   opacity: 0;
@@ -254,6 +286,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .flow-steps li,
+  .flow-steps li::after,
   .flow-loop {
     animation: none;
   }

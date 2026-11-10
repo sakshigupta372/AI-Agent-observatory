@@ -49,6 +49,8 @@ export default function SiteHeader({ current = '/', pinned = false }) {
           </a>
         ))}
       </nav>
+
+      {!pinned && <span className="sh-progress" aria-hidden="true" />}
     </header>
   )
 }

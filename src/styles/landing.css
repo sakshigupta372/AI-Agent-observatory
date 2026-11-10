@@ -728,6 +728,62 @@
   transform: translateY(22px);
 }
 
+/* Headings slide up from behind a mask, then their children follow one by one. */
+.reveal-on [data-reveal].in h2 {
+  animation: mask-up 0.9s 0.08s var(--ease) both;
+}
+
+.reveal-on [data-reveal].in :is(.metric, .break-card, .inspect-row, .honest-list li, .story-card, .results-card) {
+  animation: rise 0.7s var(--ease) both;
+  animation-delay: calc(var(--d, 0) * 90ms + 0.2s);
+}
+
+:is(.metric, .break-card, .inspect-row, .honest-list li):nth-child(2) { --d: 1; }
+:is(.metric, .break-card, .inspect-row, .honest-list li):nth-child(3) { --d: 2; }
+:is(.metric, .break-card, .inspect-row, .honest-list li):nth-child(4) { --d: 3; }
+
+@keyframes mask-up {
+  from {
+    clip-path: inset(-0.1em -0.1em 100% -0.1em);
+    translate: 0 0.45em;
+  }
+  to {
+    clip-path: inset(-0.1em -0.1em -0.3em -0.1em);
+    translate: 0 0;
+  }
+}
+
+/* Hero parallax: the copy and the example run drift at different speeds.
+   Wide screens only, where the two sit side by side and cannot collide. */
+@supports (animation-timeline: scroll()) {
+@media (min-width: 1001px) {
+  .hero-copy {
+    animation: drift-slow linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0 90vh;
+  }
+
+  .hero .example-run {
+    animation: rise 0.9s 0.12s var(--ease) both, drift-fast linear both;
+    animation-timeline: auto, scroll(root);
+    animation-range: normal, 0 90vh;
+  }
+}
+}
+
+@keyframes drift-slow {
+  to {
+    translate: 0 -50px;
+  }
+}
+
+@keyframes drift-fast {
+  to {
+    translate: 0 -130px;
+    scale: 0.97;
+  }
+}
+
 @keyframes rise {
   from {
     opacity: 0;

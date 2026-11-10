@@ -63,6 +63,53 @@ body {
   transform: translateX(-50%);
 }
 
+/* Sticky on scrolling pages; the shadow paints the paper background edge to edge. */
+.site-header:not(.pinned) {
+  position: sticky;
+  top: 0;
+  background: var(--paper);
+  box-shadow: 0 0 0 100vmax var(--paper);
+  clip-path: inset(0 -100vmax -4px);
+}
+
+.sh-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 2px;
+  background: var(--red);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+/* Scroll-linked where the browser supports it; elsewhere the header simply stays put. */
+@supports (animation-timeline: scroll()) {
+  .site-header:not(.pinned) {
+    animation: sh-compact linear both;
+    animation-timeline: scroll(root);
+    animation-range: 0 140px;
+  }
+
+  .sh-progress {
+    animation: sh-progress linear both;
+    animation-timeline: scroll(root);
+  }
+}
+
+@keyframes sh-compact {
+  to {
+    padding-top: 12px;
+    padding-bottom: 10px;
+  }
+}
+
+@keyframes sh-progress {
+  to {
+    transform: scaleX(1);
+  }
+}
+
 .site-header a {
   color: var(--ink);
   text-decoration: none;
@@ -374,6 +421,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .site-header,
   .site-header *,
   .page-hero *,
   .site-footer * {
