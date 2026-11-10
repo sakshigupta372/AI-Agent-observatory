@@ -268,35 +268,12 @@ body {
   border-bottom-color: currentColor;
 }
 
-.sf-word {
-  display: flex;
-  justify-content: space-between;
-  margin: 56px -4px 18px;
-  overflow: hidden;
-  font-size: clamp(56px, 13.6vw, 200px);
-  font-weight: 800;
-  line-height: 0.86;
-  letter-spacing: -0.06em;
-  user-select: none;
-}
-
-.sf-word span {
-  display: inline-block;
-  color: var(--ink);
-  transform: translateY(105%);
-  transition: transform 1s var(--ease);
-  transition-delay: calc(var(--i) * 40ms);
-}
-
-.sf-word.in span {
-  transform: none;
-}
-
 .sf-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
+  margin-top: 56px;
   padding-top: 14px;
   border-top: 1px solid var(--line);
   color: var(--ink-soft);
@@ -402,9 +379,5 @@ body {
   .site-footer * {
     animation: none !important;
     transition: none !important;
-  }
-
-  .sf-word span {
-    transform: none;
   }
 }

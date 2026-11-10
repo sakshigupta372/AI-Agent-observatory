@@ -1,27 +1,12 @@
-import { useEffect, useRef } from 'react'
 import { DEMOS } from '../data/demos.js'
 import { SITE_LINKS } from './SiteHeader.jsx'
 import { useLiveTotals } from '../hooks/useLiveTotals.js'
 import '../styles/site.css'
 
 const REPO = 'https://github.com/sakshigupta372/AI-Agent-observatory'
-const WORD = 'OBSERVATORY'
 
 export default function SiteFooter() {
-  const wordRef = useRef(null)
   const { totals, online } = useLiveTotals()
-
-  useEffect(() => {
-    const el = wordRef.current
-    const io = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        el.classList.add('in')
-        io.disconnect()
-      }
-    }, { threshold: 0.3 })
-    io.observe(el)
-    return () => io.disconnect()
-  }, [])
 
   return (
     <footer className="site-footer">
@@ -56,12 +41,6 @@ export default function SiteFooter() {
             </ul>
           </div>
         </div>
-      </div>
-
-      <div className="sf-word" ref={wordRef} aria-hidden="true">
-        {WORD.split('').map((letter, i) => (
-          <span key={i} style={{ '--i': i }}>{letter}</span>
-        ))}
       </div>
 
       <div className="sf-bar">
