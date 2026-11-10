@@ -60,7 +60,7 @@ function Comparison({ runs }) {
       <div style={{ maxWidth: 560, margin: '16px 0 22px' }}>
         <SuccessBars runs={runs} />
       </div>
-      <table className="table">
+      <div className="table-wrap"><table className="table">
         <thead>
           <tr>
             <th>metric</th>
@@ -81,7 +81,7 @@ function Comparison({ runs }) {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
     </div>
   )
 }
@@ -121,7 +121,7 @@ function TaskTable({ runs }) {
       </select>
       {!results && <div className="empty">Loading…</div>}
       {results && (
-        <table className="table">
+        <div className="table-wrap"><table className="table">
           <thead>
             <tr>
               <th>task</th>
@@ -155,7 +155,7 @@ function TaskTable({ runs }) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
     </div>
   )
@@ -174,7 +174,7 @@ function Benchmarks({ rows }) {
       {rows.length === 0 ? (
         <div className="empty">No benchmark stored yet. Run: <code>node --env-file=.env scripts/benchmarkRetrieval.js</code></div>
       ) : (
-        <table className="table">
+        <div className="table-wrap"><table className="table">
           <thead>
             <tr>
               <th className="num">rows</th>
@@ -203,7 +203,7 @@ function Benchmarks({ rows }) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
     </div>
   )
@@ -232,7 +232,6 @@ export default function EvalsPage() {
     <>
       <DashNav
         current="/evals"
-        kicker="Evaluations"
         title={<>Measured,<br />not claimed</>}
         subtitle="The same test questions run with and without fact-checking and retries, plus how fast memory search stays as data grows."
       />

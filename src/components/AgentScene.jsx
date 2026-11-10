@@ -317,8 +317,8 @@ export default function AgentScene() {
       <main className="obs-main">
         <section className={`obs-stage canvas-wrap${exec.running && follow ? ' cinematic' : ''}`} aria-label="3D map of the agent pipeline">
           <Canvas camera={{ position: [0, 3, 14], fov: 50 }} gl={{ antialias: true, preserveDrawingBuffer: true }} dpr={[1, 2]}>
-            <color attach="background" args={['#05070d']} />
-            <fog attach="fog" args={['#05070d', 18, 48]} />
+            <color attach="background" args={['#12100d']} />
+            <fog attach="fog" args={['#12100d', 18, 48]} />
             <Atmosphere color={zone?.color || null} />
 
             <ambientLight intensity={0.25} />

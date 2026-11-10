@@ -7,12 +7,6 @@ import '../styles/site.css'
 const REPO = 'https://github.com/sakshigupta372/AI-Agent-observatory'
 const WORD = 'OBSERVATORY'
 
-const ORBS = [
-  ['o5', { width: 120, height: 120, top: -30, right: '12%' }],
-  ['o1', { width: 46, height: 46, top: 90, right: '6%' }],
-  ['o3', { width: 34, height: 34, top: 40, right: '30%' }],
-]
-
 export default function SiteFooter() {
   const wordRef = useRef(null)
   const { totals, online } = useLiveTotals()
@@ -31,17 +25,10 @@ export default function SiteFooter() {
 
   return (
     <footer className="site-footer">
-      <div className="sf-orbs" aria-hidden="true">
-        {ORBS.map(([kind, style]) => (
-          <span key={kind} className={`orb ${kind}`} style={style} />
-        ))}
-      </div>
-
       <div className="sf-top">
         <div className="sf-intro">
-          <span className="sf-tag">[ AI Agent Observatory ]</span>
           <p>See why an AI agent got it wrong, and watch it fix itself.</p>
-          <a className="sf-btn" href="/observatory?demo">Start a demo <span>→</span></a>
+          <a className="sf-btn" href="/observatory?demo">Start a demo →</a>
         </div>
         <div className="sf-cols">
           <div>
@@ -79,12 +66,12 @@ export default function SiteFooter() {
 
       <div className="sf-bar">
         <span>© {new Date().getFullYear()} Built by Sakshi Gupta</span>
-        <span className="sf-live">
-          <i style={online === false ? { background: '#a2a0ac', animation: 'none' } : undefined} />
+        <span className={`sf-live${online === false ? ' down' : ''}`}>
+          <i />
           {online === false ? 'Status unknown' : totals ? `Agent online · ${totals.runs.toLocaleString('en-US')} runs recorded` : 'Agent online'}
         </span>
         <button type="button" className="sf-top-btn" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-          Back to top <b>↑</b>
+          Back to top ↑
         </button>
       </div>
     </footer>

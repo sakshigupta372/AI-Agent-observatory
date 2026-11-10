@@ -1,5 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { useLiveTotals } from '../hooks/useLiveTotals.js'
+import { useState } from 'react'
 import '../styles/site.css'
 
 export const SITE_LINKS = [
@@ -9,94 +8,27 @@ export const SITE_LINKS = [
   ['/evals', 'Evaluations'],
 ]
 
-// Where the nav pill sat on the previous page; the module survives client-side navigation.
-let lastPill = null
-
-// pinned: always solid and never hides on scroll (used over the full-screen observatory).
+// pinned: laid over the top of the full-screen Observatory instead of flowing with the page.
 export default function SiteHeader({ current = '/', pinned = false }) {
-  const [solid, setSolid] = useState(false)
-  const [hidden, setHidden] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [pill, setPill] = useState(lastPill)
-  const progressRef = useRef(null)
-  const navRef = useRef(null)
-  const { totals, online } = useLiveTotals()
-
-  useEffect(() => {
-    let lastY = window.scrollY
-    let ticking = false
-    const update = () => {
-      const y = window.scrollY
-      setSolid(y > 40)
-      if (y < 240 || y < lastY - 4) setHidden(false)
-      else if (y > lastY + 4) setHidden(true)
-      lastY = y
-      const max = document.documentElement.scrollHeight - window.innerHeight
-      if (progressRef.current) progressRef.current.style.transform = `scaleX(${max > 0 ? y / max : 0})`
-      ticking = false
-    }
-    const onScroll = () => {
-      if (ticking) return
-      ticking = true
-      requestAnimationFrame(update)
-    }
-    update()
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
-
-  const moveTo = (el) => setPill(el ? { href: el.getAttribute('href'), x: el.offsetLeft, w: el.offsetWidth } : null)
-  const resetPill = () => {
-    const el = navRef.current?.querySelector('a[aria-current="page"]')
-    moveTo(el)
-    if (el) lastPill = { href: el.getAttribute('href'), x: el.offsetLeft, w: el.offsetWidth }
-  }
-
-  useLayoutEffect(() => {
-    if (lastPill) {
-      const frame = requestAnimationFrame(() => requestAnimationFrame(resetPill))
-      return () => cancelAnimationFrame(frame)
-    }
-    resetPill()
-    document.fonts?.ready.then(resetPill)
-  }, [current])
 
   return (
-    <header
-      className={`site-header${solid || pinned ? ' solid' : ''}${hidden && !menuOpen && !pinned ? ' hidden' : ''}`}
-      style={{ viewTransitionName: 'site-header' }}
-    >
-      <a href="/" className="sh-chip sh-logo" aria-label="AI Agent Observatory home">
-        <span className="sh-mark" aria-hidden="true"><i /><i /><i /><i /></span>
-        Observatory <span className="dim">/ AI agents</span>
+    <header className={`site-header${pinned ? ' pinned' : ''}`} style={{ viewTransitionName: 'site-header' }}>
+      <a href="/" className="sh-logo" aria-label="AI Agent Observatory home">
+        Observatory
       </a>
 
-      <nav className="sh-nav" ref={navRef} onMouseLeave={resetPill}>
-        <span
-          className="sh-indicator"
-          style={pill ? { transform: `translateX(${pill.x - 3}px)`, width: pill.w } : { opacity: 0, width: 0 }}
-          aria-hidden="true"
-        />
+      <nav className="sh-nav" aria-label="Main">
         {SITE_LINKS.map(([href, label]) => (
-          <a
-            key={href}
-            href={href}
-            className={pill?.href === href ? 'on' : ''}
-            aria-current={href === current ? 'page' : undefined}
-            onMouseEnter={(e) => moveTo(e.currentTarget)}
-          >
+          <a key={href} href={href} aria-current={href === current ? 'page' : undefined}>
             {label}
           </a>
         ))}
       </nav>
 
       <div className="sh-actions">
-        <a className={`sh-chip sh-status${online === false ? ' down' : ''}`} href="/traces" title="Runs recorded so far">
-          <i />
-          {online === false ? 'Offline' : totals ? `${totals.runs.toLocaleString('en-US')} runs` : 'Live'}
-        </a>
-        <a className="sh-chip sh-cta" href="/observatory?demo">
-          <span className="long">Run a demo</span> <span>→</span>
+        <a className="sh-cta" href="/observatory?demo">
+          Run a demo
         </a>
         <button
           type="button"
@@ -110,15 +42,13 @@ export default function SiteHeader({ current = '/', pinned = false }) {
         </button>
       </div>
 
-      <div className={`sh-menu${menuOpen ? ' open' : ''}`}>
+      <nav className={`sh-menu${menuOpen ? ' open' : ''}`} aria-label="Main">
         {SITE_LINKS.map(([href, label]) => (
-          <a key={href} href={href} className={href === current ? 'on' : ''}>
+          <a key={href} href={href} aria-current={href === current ? 'page' : undefined}>
             {label}
           </a>
         ))}
-      </div>
-
-      <span className="sh-progress" ref={progressRef} aria-hidden="true" />
+      </nav>
     </header>
   )
 }

@@ -2,13 +2,13 @@ import { useRef } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 
-const IDLE = new THREE.Color('#05070d')
+const IDLE = new THREE.Color('#12100d')
 
 export default function Atmosphere({ color }) {
   const { scene } = useThree()
-  const current = useRef(new THREE.Color('#05070d'))
-  const target = useRef(new THREE.Color('#05070d'))
-  const tint = useRef(new THREE.Color('#05070d'))
+  const current = useRef(new THREE.Color('#12100d'))
+  const target = useRef(new THREE.Color('#12100d'))
+  const tint = useRef(new THREE.Color('#12100d'))
 
   useFrame(() => {
     if (color) tint.current.set(color)

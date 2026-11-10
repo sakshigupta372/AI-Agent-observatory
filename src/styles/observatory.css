@@ -8,7 +8,7 @@
   --ok-soft: #e3f4ec;
   --warn-soft: #fbf1d9;
   --bad-soft: #fbe6e9;
-  --surface: #ffffff;
+  --surface: var(--card);
   background: var(--panel);
   color: var(--ink);
   font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -95,7 +95,7 @@
   overflow: hidden;
   isolation: isolate;
   border-radius: 20px;
-  background: #05070d;
+  background: #12100d;
   box-shadow: 0 18px 40px -28px rgba(20, 24, 40, 0.6);
 }
 
@@ -463,7 +463,7 @@
 }
 
 .narr-steps li.live {
-  background: #eef4fc;
+  background: var(--paper-deep);
   color: var(--ink);
 }
 
@@ -668,7 +668,7 @@
 
 .obs-side .guided-picks button {
   border-color: var(--line);
-  background: #fff;
+  background: var(--card);
   color: var(--ink);
 }
 
@@ -680,7 +680,7 @@
 .obs-side .guided-steps li b { color: var(--ink); }
 .obs-side .guided-steps li span { color: var(--ink-soft); }
 .obs-side .guided-steps li.done::before { color: var(--ok); }
-.obs-side .guided-steps li.live { border-color: var(--blue); background: #eef4fc; }
+.obs-side .guided-steps li.live { border-color: var(--blue); background: var(--paper-deep); }
 .obs-side .guided-steps li.live::before { color: var(--blue); }
 .obs-side .guided-live { color: var(--blue-deep); }
 
@@ -692,7 +692,7 @@
 
 .obs-side .guided-actions button {
   border-color: var(--line);
-  background: #fff;
+  background: var(--card);
   color: var(--ink);
 }
 
@@ -724,7 +724,7 @@
 .obs-side .trace-header { color: var(--blue-deep); border-bottom-color: var(--line); }
 .obs-side .trace-live { color: var(--ok); }
 .obs-side .trace-entry { border-bottom-color: var(--line); }
-.obs-side .trace-row:hover { background: #eef4fc; }
+.obs-side .trace-row:hover { background: var(--paper-deep); }
 .obs-side .trace-time,
 .obs-side .trace-empty,
 .obs-side .trace-detail div span { color: var(--muted); }
@@ -767,7 +767,7 @@
 .obs-dock .status-line {
   align-self: flex-start;
   border: 0;
-  background: #eef4fc;
+  background: var(--paper-deep);
   color: var(--blue-deep);
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
@@ -790,7 +790,7 @@
   padding: 0 12px;
   border-radius: 8px;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--card);
   color: var(--ink);
   font: 500 12.5px Inter, sans-serif;
   cursor: pointer;
@@ -851,8 +851,8 @@
 }
 
 .obs-dock .run-form .btn-primary:disabled {
-  border-color: #b9b6c2;
-  background: #b9b6c2;
+  border-color: var(--rule);
+  background: var(--rule);
   opacity: 1;
   cursor: not-allowed;
 }
@@ -914,7 +914,7 @@
 }
 
 .obs-dock .inject-select option {
-  background: #fff;
+  background: var(--card);
   color: var(--ink);
 }
 
@@ -954,7 +954,7 @@
   padding: 5px 11px;
   border-radius: 999px;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--card);
   color: var(--ink-soft);
   font: 12.5px Inter, system-ui, sans-serif;
   white-space: nowrap;
@@ -1014,7 +1014,7 @@
 }
 
 .mode-toggle button[aria-pressed='true'] {
-  background: #fff;
+  background: var(--card);
   color: var(--ink);
   box-shadow: 0 1px 2px rgba(42, 38, 36, 0.12);
 }
@@ -1051,7 +1051,7 @@
 .tour-spot {
   position: fixed;
   border-radius: 16px;
-  box-shadow: 0 0 0 2px #fff, 0 0 0 5px var(--blue), 0 0 0 9999px rgba(20, 18, 30, 0.55);
+  box-shadow: 0 0 0 2px #fff, 0 0 0 5px var(--red), 0 0 0 9999px rgba(20, 18, 30, 0.55);
   pointer-events: none;
   transition: top 0.35s var(--ease), left 0.35s var(--ease), width 0.35s var(--ease), height 0.35s var(--ease);
 }
@@ -1060,7 +1060,7 @@
   position: fixed;
   padding: 18px;
   border-radius: 16px;
-  background: #fff;
+  background: var(--card);
   color: var(--ink);
   box-shadow: 0 24px 60px -20px rgba(20, 18, 30, 0.5);
   animation: obs-rise 0.3s var(--ease) both;

@@ -11,8 +11,7 @@ function Analytics({ data }) {
   const okRate = totals.runs ? Math.round((totals.ok / totals.runs) * 100) : 0
   return (
     <div className="stack">
-      <span className="section-label">[ Across every stored run ]</span>
-      <div className="stat-row" style={{ marginBottom: 0 }}>
+      <div className="stat-row">
         <div className="stat"><b>{totals.runs}</b><span>stored runs</span></div>
         <div className="stat"><b>{okRate}%</b><span>completed without error</span></div>
         <div className="stat"><b>{formatMs(totals.p50_ms)}</b><span>median run time</span></div>
@@ -25,9 +24,10 @@ function Analytics({ data }) {
         <div className="card">
           <h2>Where the time goes</h2>
           <p className="hint">Average and p95 duration per step, across every stored run. Retried steps are counted separately.</p>
+          <div className="table-wrap">
           <table className="table">
             <thead>
-              <tr><th>step</th><th className="num">calls</th><th>avg</th><th className="num">avg</th><th className="num">p95</th><th className="num">errors</th></tr>
+              <tr><th>step</th><th className="num">calls</th><th colSpan={2}>avg time</th><th className="num">p95</th><th className="num">errors</th></tr>
             </thead>
             <tbody>
               {stages.map((row) => (
@@ -42,25 +42,28 @@ function Analytics({ data }) {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
         <div className="card">
           <h2>By tool</h2>
           <p className="hint">How often each tool ran and how often its runs failed or degraded.</p>
+          <div className="table-wrap">
           <table className="table">
             <thead>
-              <tr><th>tool</th><th className="num">runs</th><th className="num">not ok</th><th className="num">avg time</th></tr>
+              <tr><th>tool</th><th className="num">runs</th><th className="num">failed or degraded</th><th className="num">avg time</th></tr>
             </thead>
             <tbody>
               {tools.map((row) => (
                 <tr key={row.tool}>
                   <td title={row.tool}>{toolName(row.tool)}</td>
                   <td className="num">{row.runs}</td>
-                  <td className={`num ${row.failed ? 'warn' : 'muted'}`}>{row.failed}</td>
+                  <td className={`num ${row.failed ? 'bad' : 'muted'}`}>{row.failed}</td>
                   <td className="num">{formatMs(row.avg_ms)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
     </div>
@@ -103,7 +106,6 @@ export default function TracesPage() {
     <>
       <DashNav
         current="/traces"
-        kicker="Traces"
         title={<>Every run,<br />step by step</>}
         subtitle="What the agent planned, searched, wrote and checked, with real inputs, outputs and timings for each step."
       />
@@ -112,7 +114,7 @@ export default function TracesPage() {
       {error && <div className="card bad">Could not load traces: {error}</div>}
       <Analytics data={analytics} />
 
-      <p className="hint" style={{ margin: '26px 0 12px' }}>
+      <p className="hint" style={{ margin: '0 0 12px' }}>
         You see the runs made from this browser plus the evaluation suite's runs. Other visitors' questions are never listed.
       </p>
 
