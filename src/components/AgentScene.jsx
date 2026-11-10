@@ -47,6 +47,11 @@ const labelOf = (id) => (nodeById[id] ?? toolById[id])?.label ?? id
 
 const offsetBy = (p, dx, dy, dz = 0) => [p[0] + dx, p[1] + dy, p[2] + dz]
 
+// How far the graph can be turned to either side of the front view (65°, in
+// radians). The pipeline reads left to right, so the orbit stops before the
+// graph turns back to front.
+const MAX_ORBIT = (65 * Math.PI) / 180
+
 // Everything the camera must keep in frame: each node, its label (with some
 // width), and the memory point clouds around the memory node.
 const FIT_POINTS = [
@@ -456,6 +461,8 @@ export default function AgentScene() {
               enableRotate
               minDistance={4}
               maxDistance={28}
+              minAzimuthAngle={-MAX_ORBIT}
+              maxAzimuthAngle={MAX_ORBIT}
               enableDamping
               dampingFactor={0.08}
             />
@@ -490,7 +497,7 @@ export default function AgentScene() {
             <ToolButton label="Zoom out" onClick={() => zoomBy(1.25)}>
               <Minus size={16} />
             </ToolButton>
-            <ToolButton label="Fit the whole graph" onClick={() => setFitKey((k) => k + 1)}>
+            <ToolButton label="Reset the view to fit the whole graph" onClick={() => setFitKey((k) => k + 1)}>
               <Maximize2 size={16} />
             </ToolButton>
             <ToolButton label="Camera follows the active step" onClick={toggleFollow} pressed={follow}>

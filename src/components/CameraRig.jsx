@@ -46,6 +46,8 @@ export default function CameraRig({ points, focus, follow, sway = true, fitKey =
   const swayBase = useRef(null)
   const swayClock = useRef(0)
   const resting = useRef(0)
+  const interacting = useRef(false)
+  const lastFitKey = useRef(fitKey)
 
   const center = useMemo(() => {
     const box = new THREE.Box3()
@@ -53,12 +55,13 @@ export default function CameraRig({ points, focus, follow, sway = true, fitKey =
     return box.getCenter(new THREE.Vector3())
   }, [points])
 
-  const fit = (instant) => {
+  // front: go back to the default front view instead of keeping the current angle.
+  const fit = (instant, front = false) => {
     if (!controls) return
     const offset = camera.position.clone().sub(controls.target)
     const aspect = size.width / Math.max(1, size.height)
     const portrait = aspect < 0.9
-    const dir = portrait ? PORTRAIT_DIR.clone() : offset.lengthSq() > 0.0001 ? offset.normalize() : DEFAULT_DIR.clone()
+    const dir = portrait ? PORTRAIT_DIR.clone() : front || offset.lengthSq() < 0.0001 ? DEFAULT_DIR.clone() : offset.normalize()
     const padding = portrait ? 1.08 : 1.06
     const usableHeight = Math.max(0.5, 1 - (2 * insetPx) / Math.max(1, size.height))
     const distance = fitDistance(points, center, dir, camera.fov, aspect, padding, usableHeight, portrait ? 0 : SWAY)
@@ -79,17 +82,28 @@ export default function CameraRig({ points, focus, follow, sway = true, fitKey =
 
   useEffect(() => {
     if (!controls) return
-    fit(!fitted.current)
+    // The Fit button (fitKey) also resets the angle; a resize keeps it.
+    fit(!fitted.current, fitKey !== lastFitKey.current)
+    lastFitKey.current = fitKey
     fitted.current = true
-    // Manual orbit or zoom cancels a fit still animating, and the idle sway
-    // restarts around wherever the user left the camera.
-    const cancel = () => {
+    // Manual orbit or zoom cancels a fit still animating. The idle sway waits
+    // until the user lets go, then restarts around wherever they left the camera.
+    const begin = () => {
       goal.current = null
       swayBase.current = null
       resting.current = 0
+      interacting.current = true
     }
-    controls.addEventListener('start', cancel)
-    return () => controls.removeEventListener('start', cancel)
+    const end = () => {
+      resting.current = 0
+      interacting.current = false
+    }
+    controls.addEventListener('start', begin)
+    controls.addEventListener('end', end)
+    return () => {
+      controls.removeEventListener('start', begin)
+      controls.removeEventListener('end', end)
+    }
   }, [controls, size.width, size.height, fitKey, center, insetPx])
 
   const following = Boolean(follow && focus)
@@ -119,7 +133,7 @@ export default function CameraRig({ points, focus, follow, sway = true, fitKey =
       return
     }
     // Portrait canvases have no side room to spare, so they stay still.
-    if (!sway || reducedMotion || size.width < size.height * 0.9) return
+    if (!sway || reducedMotion || interacting.current || size.width < size.height * 0.9) return
     resting.current += delta
     if (resting.current < 1.5) return
     if (swayBase.current == null) {

@@ -22,6 +22,15 @@ function getToolIcon(tool) {
   return icons[tool] || '❓'
 }
 
+const PREVIEW_CHARS = 180
+
+// Answers are stored as markdown; the preview shows plain text, cut at a word.
+function preview(result) {
+  const text = String(result).replace(/\*\*|`/g, '').replace(/\s+/g, ' ').trim()
+  if (text.length <= PREVIEW_CHARS) return text
+  return `${text.slice(0, PREVIEW_CHARS).replace(/\s+\S*$/, '')}…`
+}
+
 export default function QueryHistory({ history, isOpen, onToggle, onClear, onSelectQuery, currentQuery, showToggle = true }) {
   const panel = useRef(null)
   // A closed drawer must not take keyboard focus (React 18 has no inert prop).
@@ -85,7 +94,7 @@ export default function QueryHistory({ history, isOpen, onToggle, onClear, onSel
                   <span className="history-time">{formatTime(entry.timestamp)}</span>
                 </div>
                 <div className="history-query">{entry.query}</div>
-                {entry.result && <div className="history-result">{entry.result}...</div>}
+                {entry.result && <div className="history-result">{preview(entry.result)}</div>}
               </div>
             ))
           )}
